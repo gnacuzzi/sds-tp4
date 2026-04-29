@@ -3,54 +3,52 @@ CFLAGS = -Wall -Wextra -Werror -pedantic -std=c11 -O2
 LDFLAGS = -lm
 
 SRC_DIR = src
+OBJ_DIR = obj
 BIN_DIR = bin
 OUT_DIR = output
-IMG_DIR = images
-VID_DIR = videos
 
-TARGET = $(BIN_DIR)/tp3
+OSC_TARGET = $(BIN_DIR)/oscillator
+SCAN_TARGET = $(BIN_DIR)/scanning_rate
 
-SRC = $(wildcard $(SRC_DIR)/*.c)
-OBJ_DIR = obj
-OBJ = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC))
+OSC_SRC = \
+	$(SRC_DIR)/common/io.c \
+	$(SRC_DIR)/oscillator/main.c \
+	$(SRC_DIR)/oscillator/simulation.c
 
+SCAN_SRC = \
+	$(SRC_DIR)/scanning_rate/main.c
 
-all: $(TARGET)
+OSC_OBJ = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(OSC_SRC))
+SCAN_OBJ = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SCAN_SRC))
 
+all: $(OSC_TARGET) $(SCAN_TARGET)
 
-$(TARGET): $(OBJ)
+$(OSC_TARGET): $(OSC_OBJ)
 	@mkdir -p $(BIN_DIR)
-	@mkdir -p $(IMG_DIR)
-	@mkdir -p $(VID_DIR)
-	$(CC) $(OBJ) -o $(TARGET) $(LDFLAGS)
+	@mkdir -p $(OUT_DIR)
+	$(CC) $(OSC_OBJ) -o $(OSC_TARGET) $(LDFLAGS)
 
+$(SCAN_TARGET): $(SCAN_OBJ)
+	@mkdir -p $(BIN_DIR)
+	$(CC) $(SCAN_OBJ) -o $(SCAN_TARGET) $(LDFLAGS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	@mkdir -p $(OBJ_DIR)
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+run-oscillator: $(OSC_TARGET)
+	./$(OSC_TARGET) euler $(OUT_DIR)/oscillator_euler.csv
 
-run: $(TARGET)
-	@mkdir -p $(OUT_DIR)
-	./$(TARGET) $(N) $(BENCHMARK) $(ITTERATIONS)
-
-benchmark: $(TARGET)
-	@mkdir -p $(OUT_DIR)
-	@./$(TARGET) $(N) 1
-
+run-scanning-rate: $(SCAN_TARGET)
+	./$(SCAN_TARGET)
 
 clean:
 	rm -rf $(OBJ_DIR)
-	rm -f $(TARGET)
-
+	rm -f $(OSC_TARGET) $(SCAN_TARGET)
 
 fclean: clean
-	rm -rf $(OUT_DIR)/
-	rm -rf $(IMG_DIR)/
-	rm -rf $(VID_DIR)/
-
+	rm -rf $(OUT_DIR)
 
 re: clean all
 
-
-.PHONY: all run benchmark clean fclean re
+.PHONY: all run-oscillator run-scanning-rate clean fclean re

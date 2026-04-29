@@ -9,7 +9,7 @@ from matplotlib import colors
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from radial_profiles import process_N
+from python.scanning_rate.radial_profiles import process_N
 
 
 # =========================

@@ -7,7 +7,7 @@ import numpy as np
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from radial_profiles import compute_profiles, read_dynamic_file
+from python.scanning_rate.radial_profiles import compute_profiles, read_dynamic_file
 
 
 # =========================
