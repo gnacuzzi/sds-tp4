@@ -68,6 +68,13 @@ make fclean
 make re
 ```
 
+Convenience scripts in the project root:
+
+```bash
+./run_oscillator_all.sh
+./run_oscillator_dt_sweep.sh
+```
+
 ## System 1: Damped Oscillator
 
 The oscillator is solved numerically and compared against the analytical solution.
@@ -102,6 +109,12 @@ Examples:
 ./bin/oscillator verlet output/oscillator_verlet.csv 0.001 5.0 1
 ./bin/oscillator beeman output/oscillator_beeman.csv 0.001 5.0 1
 ./bin/oscillator gear5 output/oscillator_gear5.csv 0.001 5.0 1
+```
+
+Run all four methods and generate the System 1.2 plots in one step:
+
+```bash
+./run_oscillator_all.sh
 ```
 
 ### Output Format
@@ -151,6 +164,12 @@ The following script sweeps multiple `dt` values for all four methods, runs the 
 
 ```bash
 python3 python/oscillator/dt_sweep.py
+```
+
+Or use the root helper script:
+
+```bash
+./run_oscillator_dt_sweep.sh
 ```
 
 Outputs:
