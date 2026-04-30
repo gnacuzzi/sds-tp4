@@ -16,7 +16,10 @@ OSC_SRC = \
 	$(SRC_DIR)/oscillator/simulation.c
 
 SCAN_SRC = \
-	$(SRC_DIR)/scanning_rate/main.c
+	$(SRC_DIR)/scanning_rate/init.c \
+	$(SRC_DIR)/scanning_rate/io.c \
+	$(SRC_DIR)/scanning_rate/main.c \
+	$(SRC_DIR)/scanning_rate/simulation.c
 
 OSC_OBJ = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(OSC_SRC))
 SCAN_OBJ = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SCAN_SRC))

@@ -13,7 +13,8 @@ The repository is organized so both systems can be built and executed separately
 
 - **System 1** is implemented in C and can be simulated from the command line.
 - **System 1.2 and 1.3** post-processing scripts are implemented in Python.
-- **System 2** already has its own executable entry point, but the simulation itself is not implemented yet.
+- **System 2** has a first working time-driven simulation engine in C.
+- The later analysis stages requested by the assignment for **System 2** are still incomplete.
 
 ## Repository Layout
 
@@ -181,15 +182,108 @@ Outputs:
 
 ## System 2: Scanning Rate
 
-System 2 has a separate executable reserved for the second part of the assignment:
+System 2 simulates soft particles inside a circular enclosure with:
+
+- a fixed obstacle at the center,
+- elastic pair interactions,
+- elastic contact with the outer wall,
+- fresh/used particle state changes based on obstacle and wall contacts.
+
+### Run a Simulation
+
+General usage:
 
 ```bash
-./bin/scanning_rate
+./bin/scanning_rate [N] [run_id] [tf] [dt] [dt2] [seed] [k]
 ```
 
-At the moment it only reports that the simulation is not implemented yet.
+Arguments:
 
-The repository already includes a `python/scanning_rate/` directory intended for analysis and visualization of that system.
+- `N`: number of particles
+- `run_id`: identifier appended to output filenames
+- `tf`: final simulation time
+- `dt`: integration time step
+- `dt2`: snapshot output interval
+- `seed`: RNG seed. If omitted, a time-based random seed is used
+- `k`: elastic constant
+
+Example:
+
+```bash
+./bin/scanning_rate 100 0 10 0.001 0.1 12345 1000
+```
+
+If you do not provide a seed, the simulator generates one automatically and prints the effective value at the end of the run so it can be reused later.
+
+### Output Files
+
+Each System 2 run currently generates:
+
+- `output/<N>_dynamic<run_id>.txt`
+- `output/<N>_events<run_id>.txt`
+- `output/<N>_energy<run_id>.txt`
+
+Current meaning:
+
+- `dynamic`: saved particle states for animation and spatial post-processing
+- `events`: time series with `t`, `cfc`, and `fu`
+- `energy`: kinetic/potential energy components and total energy
+
+### Visualize a Run
+
+You can animate a dynamic output file with:
+
+```bash
+python3 python/scanning_rate/animation.py output/100_dynamic0.txt
+```
+
+Or choose the output video explicitly:
+
+```bash
+python3 python/scanning_rate/animation.py output/100_dynamic0.txt -o videos/100_dynamic0.mp4
+```
+
+### Current Scope of System 2
+
+Implemented now:
+
+- time-driven integration
+- non-overlapping particle initialization
+- particle-particle elastic forces
+- obstacle and wall contact forces
+- fresh/used state transitions
+- dynamic, event, and energy outputs
+
+Still pending:
+
+- execution-time benchmarking as a function of `N`
+- full scanning-rate analysis workflow
+- radial profile workflow integrated with the new simulation
+- `k` sweeps and derived observables
+
+### Batch Runs
+
+The root script below is prepared to run multiple realizations for:
+
+- `N = 100, 200, ..., 1000`
+
+```bash
+./run_batches.sh
+```
+
+By default it uses:
+
+- `REALIZATIONS=10`
+- `tf=500`
+- `dt=0.001`
+- `k=1000`
+
+To keep dynamic output files at reasonable sizes, the script automatically increases `dt2` as `N` grows.
+You can disable that behavior and force a fixed `dt2` value if needed:
+
+```bash
+AUTO_DT2=0 DT2=0.1 ./run_batches.sh
+```
 
 ## Notes
 
