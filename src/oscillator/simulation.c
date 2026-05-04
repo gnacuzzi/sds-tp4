@@ -166,7 +166,15 @@ static state_t step_euler(
     const double a = acceleration(params, current.x, current.v);
     state_t next = current;
 
-    next.x = current.x + current.v * dt + 0.5 * a * dt * dt;
+    //r(t+\Delta t) = r(t) + \Delta t\, v(t)
+    next.x = current.x + current.v * dt;
+
+    //esta comentado porque podemos este seria euler mejorado
+    //x(t+\Delta t) = x(t) + v(t)\Delta t + \frac{1}{2} a(t)\Delta t^2
+    //next.x = current.x + current.v * dt + 0.5 * a * dt * dt;
+
+
+    //v(t+\Delta t) = v(t) + \Delta t\, a(t)
     next.v = current.v + a * dt;
     return next;
 }
@@ -177,10 +185,13 @@ static state_t step_verlet(
     state_t current,
     double dt
 ) {
+    //ctes para reemplazar la velocidad
     const double c = params->gamma * dt / (2.0 * params->mass);
     const double w = params->k * dt * dt / params->mass;
     state_t next = current;
 
+    // r_{t+dt} = [(2 - w) r_t + (c - 1) r_{t-dt}] / (1 + c)
+    // donde c = gamma*dt/(2m), w = k*dt^2/m    next.x = ((2.0 - w) * current.x + (c - 1.0) * previous.x) / (1.0 + c);
     next.x = ((2.0 - w) * current.x + (c - 1.0) * previous.x) / (1.0 + c);
     next.v = (next.x - previous.x) / (2.0 * dt);
     return next;
@@ -193,13 +204,20 @@ static state_t step_beeman(
     double a_previous,
     double dt
 ) {
+    //r_p = r(t) + v(t)\Delta t + \left(\frac{2}{3}a(t) - \frac{1}{6}a(t-\Delta t)\right)\Delta t^2
     const double x_pred =
         current.x + current.v * dt + ((2.0 / 3.0) * a_current - (1.0 / 6.0) * a_previous) * dt * dt;
+
+    //v_p = v(t) + \left(\frac{3}{2}a(t) - \frac{1}{2}a(t-\Delta t)\right)\Delta t
     const double v_pred = current.v + ((3.0 / 2.0) * a_current - 0.5 * a_previous) * dt;
+    
+    //a(t+\Delta t) = a(r_p, v_p)
     const double a_next = acceleration(params, x_pred, v_pred);
     state_t next;
 
     next.x = x_pred;
+    
+    //v(t+\Delta t) = v(t) + \left(\frac{1}{3}a(t+\Delta t) + \frac{5}{6}a(t) - \frac{1}{6}a(t-\Delta t)\right)\Delta t
     next.v =
         current.v + ((1.0 / 3.0) * a_next + (5.0 / 6.0) * a_current - (1.0 / 6.0) * a_previous) * dt;
     return next;
@@ -286,6 +304,7 @@ bool run_oscillator(
     }
 
     if (method == METHOD_VERLET) {
+        //r(t - \Delta t) = r(t) - v(t)\Delta t + \frac{1}{2} a(t)\Delta t^2
         previous.x = params->x0 - params->v0 * config->dt + 0.5 * a_previous * config->dt * config->dt;
         previous.v = params->v0 - a_previous * config->dt;
     }
