@@ -9,7 +9,7 @@ USE_NUMPY = 1
 FONT_LABELS = 16
 FONT_TICKS  = 14
 
-NUM_OF_N = [50,100,200,300,400,500, 600, 700, 800]
+NUM_OF_N = [100,200,300,400,500, 600, 700, 800, 900, 1000]
 
 # ==============================
 # PARSER
@@ -18,10 +18,16 @@ NUM_OF_N = [50,100,200,300,400,500, 600, 700, 800]
 parser = argparse.ArgumentParser()
 parser.add_argument("n", type=int, help="N number of files")
 parser.add_argument("-ns", "--noshow", action="store_false", help="If argument is passed the program will not show plots, just save them")
+parser.add_argument("-ts", "--test",action="store_true", help="Uest for testing purposes, only prosesses the forst two Num of N" )
 args = parser.parse_args()
+
+if args.test:
+    print("Running in TEST mode")
+    NUM_OF_N = [100, 200]
 
 def parse_dynamic_file(filename):
     frames = []
+    print(f"File opened {filename}")
 
     with open(filename, "r") as f:
         while True:
@@ -151,6 +157,5 @@ filename = "images/J_vs_N.png"
 plt.savefig(filename, dpi=600)
 if args.noshow:
     plt.show()
-
 
 
