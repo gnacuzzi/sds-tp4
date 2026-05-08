@@ -5,7 +5,7 @@ import os
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
-INPUT_FILE = "output/800_events8.txt"
+INPUT_FILE = "output/800_cfc8.txt"
 
 # Tiempo a partir del cual consideramos el estado estacionario
 X_STATIONARY = 1500.0

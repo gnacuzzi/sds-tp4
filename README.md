@@ -227,13 +227,13 @@ If you do not provide a seed, the simulator generates one automatically and prin
 Each System 2 run currently generates:
 
 - `output/<N>_dynamic<run_id>.txt`
-- `output/<N>_events<run_id>.txt`
+- `output/<N>_cfc<run_id>.txt`
 - `output/<N>_energy<run_id>.txt`
 
 Current meaning:
 
 - `dynamic`: saved particle states for animation and spatial post-processing
-- `events`: time series with `t`, `cfc`, and `fu`
+- `cfc`: time series with `t`, `Cfc(t)`, and `fu(t)`
 - `energy`: kinetic/potential energy components and total energy
 
 ### Visualize a Run
@@ -259,7 +259,7 @@ Implemented now:
 - particle-particle elastic forces
 - obstacle and wall contact forces
 - fresh/used state transitions
-- dynamic, event, and energy outputs
+- dynamic, cfc, and energy outputs
 
 Still pending:
 
@@ -269,13 +269,13 @@ Still pending:
 
 ### Scanning Rate From Cfc(t)
 
-After running several realizations, compute the scanning rate `J` from the event files:
+After running several realizations, compute the scanning rate `J` from the Cfc files:
 
 ```bash
 python3 python/scanning_rate/interpolate.py 10 --ns 100 200 300 400 500 600 700 800 900 1000
 ```
 
-This reads `output/<N>_events<run>.txt`, fits `Cfc(t)` linearly for each realization, and writes:
+This reads `output/<N>_cfc<run>.txt`, fits `Cfc(t)` linearly for each realization, and writes:
 
 - `images/Cfc_fit_N_<N>.png`
 - `images/J_vs_N.png`

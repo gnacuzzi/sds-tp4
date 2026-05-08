@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
     }
 
     output.dynamic_file = NULL;
-    output.events_file = NULL;
+    output.cfc_file = NULL;
     output.energy_file = NULL;
 
     if (config.write_output) {

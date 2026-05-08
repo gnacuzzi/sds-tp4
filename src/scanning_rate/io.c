@@ -16,22 +16,22 @@ static bool open_file(FILE **file, const char *path) {
 
 bool open_scan_output(scan_output_t *output, size_t count, int run_id) {
     char dynamic_path[256];
-    char events_path[256];
+    char cfc_path[256];
     char energy_path[256];
 
     snprintf(dynamic_path, sizeof(dynamic_path), "output/%zu_dynamic%d.txt", count, run_id);
-    snprintf(events_path, sizeof(events_path), "output/%zu_events%d.txt", count, run_id);
+    snprintf(cfc_path, sizeof(cfc_path), "output/%zu_cfc%d.txt", count, run_id);
     snprintf(energy_path, sizeof(energy_path), "output/%zu_energy%d.txt", count, run_id);
 
     output->dynamic_file = NULL;
-    output->events_file = NULL;
+    output->cfc_file = NULL;
     output->energy_file = NULL;
 
     if (!open_file(&output->dynamic_file, dynamic_path)) {
         return false;
     }
 
-    if (!open_file(&output->events_file, events_path)) {
+    if (!open_file(&output->cfc_file, cfc_path)) {
         close_scan_output(output);
         return false;
     }
@@ -50,9 +50,9 @@ void close_scan_output(scan_output_t *output) {
         fclose(output->dynamic_file);
         output->dynamic_file = NULL;
     }
-    if (output->events_file != NULL) {
-        fclose(output->events_file);
-        output->events_file = NULL;
+    if (output->cfc_file != NULL) {
+        fclose(output->cfc_file);
+        output->cfc_file = NULL;
     }
     if (output->energy_file != NULL) {
         fclose(output->energy_file);
@@ -93,15 +93,15 @@ bool write_dynamic_snapshot(
     return !ferror(output->dynamic_file);
 }
 
-bool write_event_line(scan_output_t *output, const scan_observables_t *observables) {
+bool write_cfc_line(scan_output_t *output, const scan_observables_t *observables) {
     fprintf(
-        output->events_file,
+        output->cfc_file,
         "t %.12f %zu %.12f\n",
         observables->time,
         observables->cfc,
         observables->fu
     );
-    return !ferror(output->events_file);
+    return !ferror(output->cfc_file);
 }
 
 bool write_energy_line(scan_output_t *output, const scan_observables_t *observables) {

@@ -8,16 +8,16 @@ import os
 N_VALUE = 300
 
 INPUT_FILES = [
-    f"output/{N_VALUE}_events0.txt",
-    f"output/{N_VALUE}_events1.txt",
-    f"output/{N_VALUE}_events2.txt",
-    f"output/{N_VALUE}_events3.txt",
-    f"output/{N_VALUE}_events4.txt",
-    f"output/{N_VALUE}_events5.txt",
-    f"output/{N_VALUE}_events6.txt",
-    f"output/{N_VALUE}_events7.txt",
-    f"output/{N_VALUE}_events8.txt",
-    f"output/{N_VALUE}_events9.txt",
+    f"output/{N_VALUE}_cfc0.txt",
+    f"output/{N_VALUE}_cfc1.txt",
+    f"output/{N_VALUE}_cfc2.txt",
+    f"output/{N_VALUE}_cfc3.txt",
+    f"output/{N_VALUE}_cfc4.txt",
+    f"output/{N_VALUE}_cfc5.txt",
+    f"output/{N_VALUE}_cfc6.txt",
+    f"output/{N_VALUE}_cfc7.txt",
+    f"output/{N_VALUE}_cfc8.txt",
+    f"output/{N_VALUE}_cfc9.txt",
 ]
 
 # Figure

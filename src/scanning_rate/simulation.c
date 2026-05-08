@@ -193,7 +193,7 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
         observables.potential_obstacle = obstacle_potential;
 
         if (config->write_output) {
-            if (!write_event_line(output, &observables) || !write_energy_line(output, &observables)) {
+            if (!write_cfc_line(output, &observables) || !write_energy_line(output, &observables)) {
                 free(particles);
                 return false;
             }
@@ -272,7 +272,7 @@ void print_scan_usage(FILE *stream, const char *program_name) {
         "\n"
         "write_output defaults to 1. Use 0 for benchmark runs without file I/O.\n"
         "Outputs are written to output/<N>_dynamic<run_id>.txt,\n"
-        "output/<N>_events<run_id>.txt and output/<N>_energy<run_id>.txt\n",
+        "output/<N>_cfc<run_id>.txt and output/<N>_energy<run_id>.txt\n",
         program_name
     );
 }

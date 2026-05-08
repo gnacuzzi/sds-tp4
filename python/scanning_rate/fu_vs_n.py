@@ -56,7 +56,7 @@ def parse_fu(path: str):
 def collect_fu_after_cut(n: int) -> np.ndarray:
     all_fus = []
     for i in range(N_RUNS):
-        path = os.path.join(OUTPUT_DIR, f"{n}_events{i}.txt")
+        path = os.path.join(OUTPUT_DIR, f"{n}_cfc{i}.txt")
         if not os.path.isfile(path):
             print(f"  WARNING: {path} not found, skipping")
             continue

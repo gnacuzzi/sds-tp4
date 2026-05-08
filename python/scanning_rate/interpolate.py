@@ -28,7 +28,7 @@ DPI = 300
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Compute scanning rate J from Cfc(t) event files."
+        description="Compute scanning rate J from Cfc(t) files."
     )
     parser.add_argument(
         "runs",
@@ -47,7 +47,7 @@ def parse_args():
     parser.add_argument(
         "--output-dir",
         default=str(DEFAULT_OUTPUT_DIR),
-        help="Directory containing <N>_events<run>.txt files.",
+        help="Directory containing <N>_cfc<run>.txt files.",
     )
     parser.add_argument(
         "--image-dir",
@@ -85,9 +85,9 @@ def parse_args():
 
 
 def discover_ns(output_dir: Path):
-    pattern = str(output_dir / "*_events*.txt")
+    pattern = str(output_dir / "*_cfc*.txt")
     ns = set()
-    regex = re.compile(r"(?P<n>\d+)_events\d+\.txt$")
+    regex = re.compile(r"(?P<n>\d+)_cfc\d+\.txt$")
 
     for path in glob.glob(pattern):
         match = regex.search(os.path.basename(path))
@@ -97,10 +97,10 @@ def discover_ns(output_dir: Path):
     return sorted(ns)
 
 
-def parse_event_line(line: str):
+def parse_cfc_line(line: str):
     parts = line.split()
     if len(parts) < 3 or parts[0] != "t":
-        raise ValueError(f"Invalid event line: {line.rstrip()}")
+        raise ValueError(f"Invalid Cfc line: {line.rstrip()}")
     return float(parts[1]), float(parts[2])
 
 
@@ -123,7 +123,7 @@ def compute_slope(path: Path, t_min: Optional[float], t_max: Optional[float]):
         for line in handle:
             if not line.strip():
                 continue
-            t, cfc = parse_event_line(line)
+            t, cfc = parse_cfc_line(line)
             if not include_time(t, t_min, t_max):
                 continue
 
@@ -151,7 +151,7 @@ def read_change_points(path: Path, t_min: Optional[float], t_max: Optional[float
         for line in handle:
             if not line.strip():
                 continue
-            t, cfc = parse_event_line(line)
+            t, cfc = parse_cfc_line(line)
             if not include_time(t, t_min, t_max):
                 continue
 
@@ -267,7 +267,11 @@ def main():
         print(f"Processing N={n_value}")
 
         for run_id in range(args.runs):
-            path = output_dir / f"{n_value}_events{run_id}.txt"
+            path = output_dir / f"{n_value}_cfc{run_id}.txt"
+            if not path.is_file():
+                legacy_path = output_dir / f"{n_value}_events{run_id}.txt"
+                if legacy_path.is_file():
+                    path = legacy_path
             if not path.is_file():
                 print(f"  missing {path}, skipping")
                 continue
@@ -299,7 +303,7 @@ def main():
         print(f"  saved {plot_path}")
 
     if not rows:
-        raise SystemExit("No valid event files found.")
+        raise SystemExit("No valid Cfc files found.")
 
     write_summary(rows, summary_path)
     j_plot_path = save_j_vs_n_plot(rows, image_dir)
