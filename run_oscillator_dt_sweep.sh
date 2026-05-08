@@ -7,7 +7,7 @@ BIN_PATH="$ROOT_DIR/bin/oscillator"
 SWEEP_SCRIPT="$ROOT_DIR/python/oscillator/dt_sweep.py"
 
 TF="${TF:-5.0}"
-SAMPLE_EVERY="${SAMPLE_EVERY:-1}"
+SAMPLE_DT="${SAMPLE_DT:-0.05}"
 
 if [[ ! -x "$BIN_PATH" ]]; then
   echo "Executable not found: $BIN_PATH"
@@ -19,6 +19,6 @@ echo "Running dt sweep for oscillator methods"
 python3 "$SWEEP_SCRIPT" \
   --binary "$BIN_PATH" \
   --tf "$TF" \
-  --sample-every "$SAMPLE_EVERY"
+  --sample-dt "$SAMPLE_DT"
 
 echo "Done."

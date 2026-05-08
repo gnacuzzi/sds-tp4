@@ -16,6 +16,13 @@ DEFAULT_INPUT_DIR = Path("output")
 DEFAULT_OUTPUT_DIR = Path("images/oscillator")
 DEFAULT_SUMMARY_PATH = Path("output/oscillator_mse_summary.csv")
 KNOWN_METHODS = {"euler", "verlet", "beeman", "gear5"}
+METHOD_ORDER = ["euler", "verlet", "beeman", "gear5"]
+METHOD_COLORS = {
+    "euler": "#e41a1c",
+    "verlet": "#377eb8",
+    "beeman": "#4daf4a",
+    "gear5": "#984ea3",
+}
 
 FIGSIZE = (10, 8)
 DPI = 300
@@ -93,6 +100,81 @@ def plot_solution(method: str, data: dict[str, np.ndarray], metrics: dict[str, f
     return output_path
 
 
+def plot_combined_position(
+    datasets: dict[str, dict[str, np.ndarray]],
+    output_dir: Path,
+    stride: int,
+    solid_lines: bool,
+) -> Path:
+    figure, axis = plt.subplots(figsize=(11, 6))
+    stride = max(stride, 1)
+
+    first_method = next(method for method in METHOD_ORDER if method in datasets)
+    reference = datasets[first_method]
+    reference_slice = slice(None, None, stride)
+
+    if solid_lines:
+        axis.plot(
+            reference["time"],
+            reference["x_analytic"],
+            color="black",
+            linewidth=2.2,
+            label="Analitica",
+            zorder=4,
+        )
+    else:
+        axis.scatter(
+            reference["time"][reference_slice],
+            reference["x_analytic"][reference_slice],
+            marker="o",
+            s=10,
+            color="black",
+            label="Analitica",
+            zorder=4,
+        )
+
+    for method in METHOD_ORDER:
+        if method not in datasets:
+            continue
+
+        data = datasets[method]
+        if solid_lines:
+            axis.plot(
+                data["time"],
+                data["x_numeric"],
+                linewidth=1.5,
+                color=METHOD_COLORS[method],
+                label=method,
+                alpha=0.9,
+            )
+        else:
+            data_slice = slice(None, None, stride)
+            axis.scatter(
+                data["time"][data_slice],
+                data["x_numeric"][data_slice],
+                marker="x",
+                s=46,
+                linewidths=1.7,
+                color=METHOD_COLORS[method],
+                label=method,
+                alpha=0.85,
+            )
+
+    axis.set_xlabel("Tiempo", fontsize=LABEL_SIZE)
+    axis.set_ylabel("Posicion x(t)", fontsize=LABEL_SIZE)
+    axis.tick_params(axis="both", labelsize=TICK_SIZE)
+    axis.legend(fontsize=LEGEND_SIZE, loc="best", ncols=2)
+    figure.tight_layout()
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / (
+        "combined_position_methods_solid.png" if solid_lines else "combined_position_methods.png"
+    )
+    figure.savefig(output_path, dpi=DPI, bbox_inches="tight")
+    plt.close(figure)
+    return output_path
+
+
 def write_summary(rows: list[dict[str, object]], summary_path: Path) -> None:
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     with summary_path.open("w", newline="") as handle:
@@ -143,6 +225,22 @@ def build_argument_parser() -> argparse.ArgumentParser:
         default=str(DEFAULT_SUMMARY_PATH),
         help="CSV resumen con ECM por metodo",
     )
+    parser.add_argument(
+        "--combined-position",
+        action="store_true",
+        help="Genera un unico grafico de posicion con analitica y todos los metodos.",
+    )
+    parser.add_argument(
+        "--stride",
+        type=int,
+        default=25,
+        help="Submuestreo para graficos con marcadores. Default: 25",
+    )
+    parser.add_argument(
+        "--solid-lines",
+        action="store_true",
+        help="Usa curvas solidas en el grafico combinado de posicion.",
+    )
     return parser
 
 
@@ -157,6 +255,7 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     summary_path = Path(args.summary)
     summary_rows: list[dict[str, object]] = []
+    datasets: dict[str, dict[str, np.ndarray]] = {}
 
     for input_path in input_files:
         if not input_path.is_file():
@@ -164,6 +263,7 @@ def main() -> int:
 
         method = infer_method(input_path)
         data = load_csv(input_path)
+        datasets[method] = data
         metrics = compute_metrics(data)
         plot_path = plot_solution(method, data, metrics, output_dir)
 
@@ -189,6 +289,11 @@ def main() -> int:
 
     write_summary(summary_rows, summary_path)
     print(f"Resumen guardado en {summary_path}")
+
+    if args.combined_position:
+        combined_path = plot_combined_position(datasets, output_dir, args.stride, args.solid_lines)
+        print(f"Grafico combinado guardado en {combined_path}")
+
     return 0
 
 

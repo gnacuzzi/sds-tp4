@@ -14,14 +14,13 @@ import numpy as np
 
 
 METHODS = ["euler", "verlet", "beeman", "gear5"]
-DEFAULT_DTS = [1e-1, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4]
+DEFAULT_DTS = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
 DEFAULT_TF = 5.0
-DEFAULT_SAMPLE_EVERY = 1
+DEFAULT_SAMPLE_DT = 0.05
 DEFAULT_BINARY = Path("bin/oscillator")
 DEFAULT_OUTPUT_DIR = Path("output/oscillator_dt_sweep")
 DEFAULT_SUMMARY_PATH = Path("output/oscillator_dt_sweep_summary.csv")
 DEFAULT_FIGURE_PATH = Path("images/oscillator/dt_vs_mse_position.png")
-DEFAULT_FIGURE_VELOCITY_PATH = Path("images/oscillator/dt_vs_mse_velocity.png")
 
 FIGSIZE = (10, 6)
 DPI = 300
@@ -61,10 +60,10 @@ def parse_args() -> argparse.Namespace:
         help="Tiempo final de simulacion",
     )
     parser.add_argument(
-        "--sample-every",
-        type=int,
-        default=DEFAULT_SAMPLE_EVERY,
-        help="Cada cuantos pasos guardar muestras",
+        "--sample-dt",
+        type=float,
+        default=DEFAULT_SAMPLE_DT,
+        help="Intervalo temporal aproximado para guardar muestras intermedias. No afecta el ECM.",
     )
     parser.add_argument(
         "--output-dir",
@@ -80,11 +79,6 @@ def parse_args() -> argparse.Namespace:
         "--figure",
         default=str(DEFAULT_FIGURE_PATH),
         help="Ruta de salida para la figura ECM posicion vs dt",
-    )
-    parser.add_argument(
-        "--velocity-figure",
-        default=str(DEFAULT_FIGURE_VELOCITY_PATH),
-        help="Ruta de salida para la figura ECM velocidad vs dt",
     )
     return parser.parse_args()
 
@@ -108,9 +102,10 @@ def run_method(
     method: str,
     dt: float,
     tf: float,
-    sample_every: int,
+    sample_dt: float,
 ) -> dict[str, object]:
     csv_path = output_dir / f"{method}_dt_{dt:.6g}.csv"
+    sample_every = max(1, int(round(sample_dt / dt)))
     command = [
         str(binary),
         method,
@@ -183,7 +178,6 @@ def plot_metric(rows: list[dict[str, object]], metric: str, ylabel: str, output_
     axis.set_yscale("log")
     axis.set_xlabel("Paso temporal dt", fontsize=LABEL_SIZE)
     axis.set_ylabel(ylabel, fontsize=LABEL_SIZE)
-    axis.set_title("Oscilador amortiguado: ECM vs dt", fontsize=TITLE_SIZE)
     axis.tick_params(axis="both", labelsize=TICK_SIZE)
     axis.legend(fontsize=LEGEND_SIZE)
 
@@ -199,7 +193,6 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     summary_path = Path(args.summary)
     figure_path = Path(args.figure)
-    velocity_figure_path = Path(args.velocity_figure)
 
     if not binary.is_file():
         raise SystemExit(f"No se encontro el ejecutable: {binary}")
@@ -209,21 +202,18 @@ def main() -> int:
     rows: list[dict[str, object]] = []
     for method in METHODS:
         for dt in args.dts:
-            row = run_method(binary, output_dir, method, dt, args.tf, args.sample_every)
+            row = run_method(binary, output_dir, method, dt, args.tf, args.sample_dt)
             rows.append(row)
             print(
                 f"{method:>6} dt={dt:.6g} "
-                f"ECM_pos={float(row['mse_position']):.6e} "
-                f"ECM_vel={float(row['mse_velocity']):.6e}"
+                f"ECM_pos={float(row['mse_position']):.6e}"
             )
 
     write_summary(rows, summary_path)
     plot_metric(rows, "mse_position", "ECM de posicion", figure_path)
-    plot_metric(rows, "mse_velocity", "ECM de velocidad", velocity_figure_path)
 
     print(f"Resumen guardado en {summary_path}")
     print(f"Figura posicion guardada en {figure_path}")
-    print(f"Figura velocidad guardada en {velocity_figure_path}")
     return 0
 
 
