@@ -6,6 +6,7 @@
 #include <time.h>
 
 #include "../common/config.h"
+#include "cell_index.h"
 #include "config.h"
 #include "init.h"
 
@@ -26,6 +27,7 @@ static double vec_norm(vec2_t v) {
 }
 
 static double compute_forces(
+    cell_index_t *cell_index,
     particle_t *particles,
     size_t count,
     double k,
@@ -34,10 +36,16 @@ static double compute_forces(
     double *obstacle_potential
 ) {
     size_t i;
-    size_t j;
     double kinetic = 0.0;
     const double wall_limit = SCAN_SYSTEM_RADIUS - SCAN_PARTICLE_RADIUS;
     const double obstacle_limit = SCAN_OBSTACLE_RADIUS + SCAN_PARTICLE_RADIUS;
+    static const int offsets[5][2] = {
+        {0, 0},
+        {1, 0},
+        {0, 1},
+        {1, 1},
+        {-1, 1}
+    };
 
     *pair_potential = 0.0;
     *wall_potential = 0.0;
@@ -52,19 +60,56 @@ static double compute_forces(
         particles[i].touching_wall = false;
     }
 
-    for (i = 0; i < count; ++i) {
-        for (j = i + 1; j < count; ++j) {
-            const vec2_t delta = vec_sub(particles[i].position, particles[j].position);
-            const double distance = vec_norm(delta);
-            const double overlap = 2.0 * SCAN_PARTICLE_RADIUS - distance;
+    cell_index_build(cell_index, particles, count);
 
-            if (overlap > 0.0 && distance > EPS) {
-                const vec2_t direction = vec_scale(delta, 1.0 / distance);
-                const vec2_t force = vec_scale(direction, k * overlap);
+    for (int cell_y = 0; cell_y < cell_index->cells_per_side; ++cell_y) {
+        for (int cell_x = 0; cell_x < cell_index->cells_per_side; ++cell_x) {
+            const int cell = cell_index_flat_index(cell_index, cell_x, cell_y);
 
-                particles[i].acceleration = vec_add(particles[i].acceleration, force);
-                particles[j].acceleration = vec_sub(particles[j].acceleration, force);
-                *pair_potential += 0.5 * k * overlap * overlap;
+            for (int i_index = cell_index->head[cell]; i_index != -1; i_index = cell_index->next[i_index]) {
+                for (size_t offset = 0; offset < 5; ++offset) {
+                    const int neighbor_x = cell_x + offsets[offset][0];
+                    const int neighbor_y = cell_y + offsets[offset][1];
+                    int neighbor_cell;
+
+                    if (
+                        neighbor_x < 0 ||
+                        neighbor_x >= cell_index->cells_per_side ||
+                        neighbor_y < 0 ||
+                        neighbor_y >= cell_index->cells_per_side
+                    ) {
+                        continue;
+                    }
+
+                    neighbor_cell = cell_index_flat_index(cell_index, neighbor_x, neighbor_y);
+
+                    for (
+                        int j_index = cell_index->head[neighbor_cell];
+                        j_index != -1;
+                        j_index = cell_index->next[j_index]
+                    ) {
+                        if (j_index <= i_index) {
+                            continue;
+                        }
+
+                        const size_t j = (size_t) j_index;
+                        const vec2_t delta = vec_sub(particles[i_index].position, particles[j].position);
+                        const double distance = vec_norm(delta);
+                        const double overlap = 2.0 * SCAN_PARTICLE_RADIUS - distance;
+
+                        if (overlap > 0.0 && distance > EPS) {
+                            const vec2_t direction = vec_scale(delta, 1.0 / distance);
+                            const vec2_t force = vec_scale(direction, k * overlap);
+
+                            particles[i_index].acceleration = vec_add(
+                                particles[i_index].acceleration,
+                                force
+                            );
+                            particles[j].acceleration = vec_sub(particles[j].acceleration, force);
+                            *pair_potential += 0.5 * k * overlap * overlap;
+                        }
+                    }
+                }
             }
         }
     }
@@ -143,6 +188,7 @@ static void update_states(particle_t *particles, size_t count, size_t *cfc) {
 
 bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, scan_summary_t *summary) {
     particle_t *particles;
+    cell_index_t cell_index;
     size_t step;
     size_t cfc = 0;
     const size_t total_steps = (size_t) llround(config->tf / config->dt);
@@ -168,7 +214,13 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
         return false;
     }
 
+    if (!cell_index_init(&cell_index, config->count)) {
+        free(particles);
+        return false;
+    }
+
     kinetic = compute_forces(
+        &cell_index,
         particles,
         config->count,
         config->k,
@@ -194,12 +246,14 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
 
         if (config->write_output) {
             if (!write_cfc_line(output, &observables) || !write_energy_line(output, &observables)) {
+                cell_index_free(&cell_index);
                 free(particles);
                 return false;
             }
 
             if (step % sample_every == 0) {
                 if (!write_dynamic_snapshot(output, particles, config->count, &observables)) {
+                    cell_index_free(&cell_index);
                     free(particles);
                     return false;
                 }
@@ -225,6 +279,7 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
         }
 
         kinetic = compute_forces(
+            &cell_index,
             particles,
             config->count,
             config->k,
@@ -250,6 +305,7 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
     }
 
     final_fu = compute_fu(particles, config->count);
+    cell_index_free(&cell_index);
     free(particles);
 
     if (summary != NULL) {

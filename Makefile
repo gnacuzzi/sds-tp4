@@ -16,6 +16,7 @@ OSC_SRC = \
 	$(SRC_DIR)/oscillator/simulation.c
 
 SCAN_SRC = \
+	$(SRC_DIR)/scanning_rate/cell_index.c \
 	$(SRC_DIR)/scanning_rate/init.c \
 	$(SRC_DIR)/scanning_rate/io.c \
 	$(SRC_DIR)/scanning_rate/main.c \
