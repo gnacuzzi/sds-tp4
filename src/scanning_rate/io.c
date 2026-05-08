@@ -122,3 +122,16 @@ bool write_energy_line(scan_output_t *output, const scan_observables_t *observab
     );
     return !ferror(output->energy_file);
 }
+
+bool append_performance_row(size_t count, double elapsed_seconds) {
+    FILE *file = fopen("output/performance.csv", "a");
+
+    if (file == NULL) {
+        fprintf(stderr, "Could not open 'output/performance.csv': %s\n", strerror(errno));
+        return false;
+    }
+
+    fprintf(file, "%zu,%.9f\n", count, elapsed_seconds);
+    fclose(file);
+    return true;
+}

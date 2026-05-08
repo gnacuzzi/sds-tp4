@@ -66,9 +66,11 @@ int main(int argc, char **argv) {
         .dt2 = SCAN_DEFAULT_DT2,
         .k = SCAN_DEFAULT_K,
         .seed = SCAN_DEFAULT_SEED,
-        .run_id = 0
+        .run_id = 0,
+        .write_output = true
     };
     scan_output_t output;
+    scan_summary_t summary;
 
     if (argc >= 2 && !parse_size_arg(argv[1], &config.count)) {
         fprintf(stderr, "Invalid N: %s\n", argv[1]);
@@ -99,6 +101,16 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Invalid k: %s\n", argv[7]);
         return EXIT_FAILURE;
     }
+    if (argc >= 9) {
+        int write_output_flag;
+
+        if (!parse_int_arg(argv[8], &write_output_flag)) {
+            fprintf(stderr, "Invalid write_output flag: %s\n", argv[8]);
+            return EXIT_FAILURE;
+        }
+
+        config.write_output = write_output_flag != 0;
+    }
 
     if (config.count == 0 || config.tf <= 0.0 || config.dt <= 0.0 || config.dt2 <= 0.0 || config.k <= 0.0) {
         fprintf(stderr, "N, tf, dt, dt2 and k must be positive.\n");
@@ -109,11 +121,17 @@ int main(int argc, char **argv) {
         config.seed = (unsigned int) time(NULL);
     }
 
-    if (!open_scan_output(&output, config.count, config.run_id)) {
-        return EXIT_FAILURE;
+    output.dynamic_file = NULL;
+    output.events_file = NULL;
+    output.energy_file = NULL;
+
+    if (config.write_output) {
+        if (!open_scan_output(&output, config.count, config.run_id)) {
+            return EXIT_FAILURE;
+        }
     }
 
-    if (!run_scan_simulation(&config, &output)) {
+    if (!run_scan_simulation(&config, &output, &summary)) {
         close_scan_output(&output);
         fprintf(stderr, "Simulation failed.\n");
         return EXIT_FAILURE;
@@ -121,15 +139,26 @@ int main(int argc, char **argv) {
 
     close_scan_output(&output);
 
+    if (!config.write_output) {
+        if (!append_performance_row(config.count, summary.elapsed_seconds)) {
+            return EXIT_FAILURE;
+        }
+    }
+
     printf(
-        "scanning_rate completed: N=%zu run_id=%d tf=%.6f dt=%.6f dt2=%.6f seed=%u k=%.6f\n",
+        "scanning_rate completed: N=%zu run_id=%d tf=%.6f dt=%.6f dt2=%.6f seed=%u k=%.6f write_output=%d\n",
         config.count,
         config.run_id,
         config.tf,
         config.dt,
         config.dt2,
         config.seed,
-        config.k
+        config.k,
+        (int) config.write_output
     );
+    printf("simulation_time=%.9f\n", summary.elapsed_seconds);
+    printf("steps=%zu\n", summary.steps);
+    printf("cfc=%zu\n", summary.cfc);
+    printf("fu=%.12f\n", summary.fu);
     return EXIT_SUCCESS;
 }

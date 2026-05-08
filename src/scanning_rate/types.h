@@ -34,6 +34,7 @@ typedef struct {
     double k;
     unsigned int seed;
     int run_id;
+    bool write_output;
 } scan_config_t;
 
 typedef struct {
@@ -45,5 +46,12 @@ typedef struct {
     double potential_wall;
     double potential_obstacle;
 } scan_observables_t;
+
+typedef struct {
+    double elapsed_seconds;
+    size_t steps;
+    size_t cfc;
+    double fu;
+} scan_summary_t;
 
 #endif

@@ -194,7 +194,7 @@ System 2 simulates soft particles inside a circular enclosure with:
 General usage:
 
 ```bash
-./bin/scanning_rate [N] [run_id] [tf] [dt] [dt2] [seed] [k]
+./bin/scanning_rate [N] [run_id] [tf] [dt] [dt2] [seed] [k] [write_output]
 ```
 
 Arguments:
@@ -206,11 +206,18 @@ Arguments:
 - `dt2`: snapshot output interval
 - `seed`: RNG seed. If omitted, a time-based random seed is used
 - `k`: elastic constant
+- `write_output`: optional flag. Use `1` to write files and `0` for benchmark runs without file I/O
 
 Example:
 
 ```bash
 ./bin/scanning_rate 100 0 10 0.001 0.1 12345 1000
+```
+
+Benchmark-style execution without writing output files:
+
+```bash
+./bin/scanning_rate 100 0 10 0.001 0.1 12345 1000 0
 ```
 
 If you do not provide a seed, the simulator generates one automatically and prints the effective value at the end of the run so it can be reused later.
@@ -256,10 +263,38 @@ Implemented now:
 
 Still pending:
 
-- execution-time benchmarking as a function of `N`
 - full scanning-rate analysis workflow
 - radial profile workflow integrated with the new simulation
 - `k` sweeps and derived observables
+
+### Benchmark Runs
+
+Use the root script below to measure execution time without counting output-file writing:
+
+```bash
+./benchmark.sh
+```
+
+The script runs the simulator with `write_output=0`. In that mode, the C executable measures `simulation_time` with `clock()` and appends each run directly to `output/performance.csv`.
+
+The script writes:
+
+- `output/performance.csv`
+
+Configurable environment variables:
+
+- `RUNS`: number of realizations per `N`
+- `TF`: final simulation time
+- `DT`: integration time step
+- `DT2`: snapshot interval passed to the simulator, unused for output when `write_output=0`
+- `K`: elastic constant
+- `SEED`: base RNG seed
+
+Example:
+
+```bash
+RUNS=3 TF=100 DT=0.001 K=1000 ./benchmark.sh
+```
 
 ### Batch Runs
 

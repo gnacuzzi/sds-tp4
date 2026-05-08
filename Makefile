@@ -45,6 +45,9 @@ run-oscillator: $(OSC_TARGET)
 run-scanning-rate: $(SCAN_TARGET)
 	./$(SCAN_TARGET)
 
+benchmark-scanning-rate: $(SCAN_TARGET)
+	./$(SCAN_TARGET) $(N) $(RUN_ID) $(TF) $(DT) $(DT2) $(SEED) $(K) 0
+
 clean:
 	rm -rf $(OBJ_DIR)
 	rm -f $(OSC_TARGET) $(SCAN_TARGET)
@@ -54,4 +57,4 @@ fclean: clean
 
 re: clean all
 
-.PHONY: all run-oscillator run-scanning-rate clean fclean re
+.PHONY: all run-oscillator run-scanning-rate benchmark-scanning-rate clean fclean re

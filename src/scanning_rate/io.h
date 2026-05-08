@@ -22,5 +22,6 @@ bool write_dynamic_snapshot(
 );
 bool write_event_line(scan_output_t *output, const scan_observables_t *observables);
 bool write_energy_line(scan_output_t *output, const scan_observables_t *observables);
+bool append_performance_row(size_t count, double elapsed_seconds);
 
 #endif

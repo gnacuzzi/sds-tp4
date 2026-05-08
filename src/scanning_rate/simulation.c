@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "../common/config.h"
 #include "config.h"
@@ -140,7 +141,7 @@ static void update_states(particle_t *particles, size_t count, size_t *cfc) {
     }
 }
 
-bool run_scan_simulation(const scan_config_t *config, scan_output_t *output) {
+bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, scan_summary_t *summary) {
     particle_t *particles;
     size_t step;
     size_t cfc = 0;
@@ -150,6 +151,8 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output) {
     double wall_potential = 0.0;
     double obstacle_potential = 0.0;
     double kinetic = 0.0;
+    double final_fu = 0.0;
+    const clock_t start_clock = clock();
 
     if (sample_every == 0) {
         sample_every = 1;
@@ -189,15 +192,17 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output) {
         observables.potential_wall = wall_potential;
         observables.potential_obstacle = obstacle_potential;
 
-        if (!write_event_line(output, &observables) || !write_energy_line(output, &observables)) {
-            free(particles);
-            return false;
-        }
-
-        if (step % sample_every == 0) {
-            if (!write_dynamic_snapshot(output, particles, config->count, &observables)) {
+        if (config->write_output) {
+            if (!write_event_line(output, &observables) || !write_energy_line(output, &observables)) {
                 free(particles);
                 return false;
+            }
+
+            if (step % sample_every == 0) {
+                if (!write_dynamic_snapshot(output, particles, config->count, &observables)) {
+                    free(particles);
+                    return false;
+                }
             }
         }
 
@@ -244,7 +249,18 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output) {
         }
     }
 
+    final_fu = compute_fu(particles, config->count);
     free(particles);
+
+    if (summary != NULL) {
+        const clock_t end_clock = clock();
+
+        summary->elapsed_seconds = (double) (end_clock - start_clock) / (double) CLOCKS_PER_SEC;
+        summary->steps = total_steps;
+        summary->cfc = cfc;
+        summary->fu = final_fu;
+    }
+
     return true;
 }
 
@@ -252,8 +268,9 @@ void print_scan_usage(FILE *stream, const char *program_name) {
     fprintf(
         stream,
         "Usage:\n"
-        "  %s [N] [run_id] [tf] [dt] [dt2] [seed] [k]\n"
+        "  %s [N] [run_id] [tf] [dt] [dt2] [seed] [k] [write_output]\n"
         "\n"
+        "write_output defaults to 1. Use 0 for benchmark runs without file I/O.\n"
         "Outputs are written to output/<N>_dynamic<run_id>.txt,\n"
         "output/<N>_events<run_id>.txt and output/<N>_energy<run_id>.txt\n",
         program_name
