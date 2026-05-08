@@ -1,161 +1,314 @@
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from matplotlib.patches import Circle
-import numpy as np
 import argparse
+import glob
+import os
+import re
+from pathlib import Path
+from typing import Optional
 
-USE_NUMPY = 1
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
+os.environ.setdefault("XDG_CACHE_HOME", "/tmp")
 
-FONT_LABELS = 16
-FONT_TICKS  = 14
+import matplotlib
 
-NUM_OF_N = [100,200,300,400,500, 600, 700, 800, 900, 1000]
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
 
-# ==============================
-# PARSER
-# ==============================
 
-parser = argparse.ArgumentParser()
-parser.add_argument("n", type=int, help="N number of files")
-parser.add_argument("-ns", "--noshow", action="store_false", help="If argument is passed the program will not show plots, just save them")
-parser.add_argument("-ts", "--test",action="store_true", help="Uest for testing purposes, only prosesses the forst two Num of N" )
-args = parser.parse_args()
+DEFAULT_OUTPUT_DIR = Path("output")
+DEFAULT_IMAGE_DIR = Path("images")
+DEFAULT_SUMMARY = Path("output/scanning_rate_j_summary.csv")
+DEFAULT_NS = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
 
-if args.test:
-    print("Running in TEST mode")
-    NUM_OF_N = [100, 200]
+FONT_LABELS = 18
+FONT_TICKS = 15
+FONT_LEGEND = 13
+DPI = 300
 
-def parse_dynamic_file(filename):
-    frames = []
-    print(f"File opened {filename}")
 
-    with open(filename, "r") as f:
-        while True:
-            time_line = f.readline().strip()
-            if not time_line:
-                break
-            
-            parts = time_line.split()
-            t = float(parts[1])
-            cfc = int(parts[2])
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Compute scanning rate J from Cfc(t) event files."
+    )
+    parser.add_argument(
+        "runs",
+        nargs="?",
+        type=int,
+        default=10,
+        help="Number of realizations per N. Default: 10",
+    )
+    parser.add_argument(
+        "--ns",
+        nargs="+",
+        type=int,
+        default=None,
+        help="N values to process. Default: discover from output or use 100..1000.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=str(DEFAULT_OUTPUT_DIR),
+        help="Directory containing <N>_events<run>.txt files.",
+    )
+    parser.add_argument(
+        "--image-dir",
+        default=str(DEFAULT_IMAGE_DIR),
+        help="Directory where plots are written.",
+    )
+    parser.add_argument(
+        "--summary",
+        default=str(DEFAULT_SUMMARY),
+        help="CSV summary path.",
+    )
+    parser.add_argument(
+        "--t-min",
+        type=float,
+        default=None,
+        help="Minimum time used for the linear fit.",
+    )
+    parser.add_argument(
+        "--t-max",
+        type=float,
+        default=None,
+        help="Maximum time used for the linear fit.",
+    )
+    parser.add_argument(
+        "--show",
+        action="store_true",
+        help="Show plots interactively after saving.",
+    )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Process only the first two N values.",
+    )
+    return parser.parse_args()
 
-            frames.append((t, cfc))
 
-    return frames
+def discover_ns(output_dir: Path):
+    pattern = str(output_dir / "*_events*.txt")
+    ns = set()
+    regex = re.compile(r"(?P<n>\d+)_events\d+\.txt$")
 
-N_vals = []
-J_means = []
-J_stds = []
+    for path in glob.glob(pattern):
+        match = regex.search(os.path.basename(path))
+        if match:
+            ns.add(int(match.group("n")))
 
-# ==============================
-# Generate separate plots for diffrent N's
-# ==============================
+    return sorted(ns)
 
-for N in NUM_OF_N:
-    plt.figure(figsize=(8, 5))
 
-    # Generate distinct colors for each iteration Set1, tab10, Dark2
-    colors = plt.cm.Set1(np.linspace(0, 1, args.n))
-    J_values = []
+def parse_event_line(line: str):
+    parts = line.split()
+    if len(parts) < 3 or parts[0] != "t":
+        raise ValueError(f"Invalid event line: {line.rstrip()}")
+    return float(parts[1]), float(parts[2])
 
-    #Grab data from all runs of same N and plot them together
-    for idx in range(args.n):
-        INPUT_FILE = f"output/{N}_events{idx}.txt"
-        frames = parse_dynamic_file(INPUT_FILE)
 
-        time_long, cfcval_long = map(list, zip(*frames))
+def include_time(t: float, t_min: Optional[float], t_max: Optional[float]):
+    if t_min is not None and t < t_min:
+        return False
+    if t_max is not None and t > t_max:
+        return False
+    return True
 
-        # Keep only points where CFC changes
-        time = [time_long[0]]
-        cfcval = [cfcval_long[0]]
 
-        for j in range(1, len(cfcval_long)):
-            if cfcval_long[j] != cfcval_long[j - 1]:
-                time.append(time_long[j])
-                cfcval.append(cfcval_long[j])
+def compute_slope(path: Path, t_min: Optional[float], t_max: Optional[float]):
+    n = 0
+    sum_t = 0.0
+    sum_y = 0.0
+    sum_tt = 0.0
+    sum_ty = 0.0
 
-        color = colors[idx]
+    with path.open() as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            t, cfc = parse_event_line(line)
+            if not include_time(t, t_min, t_max):
+                continue
 
-        try:
-            # Fit linear regression
-            coef = np.polyfit(time, cfcval, 1)
-            poly1d_fn = np.poly1d(coef)
-            J_values.append(coef[0])
+            n += 1
+            sum_t += t
+            sum_y += cfc
+            sum_tt += t * t
+            sum_ty += t * cfc
 
-            # Scatter points
-            plt.scatter(time, cfcval, color=color, s=7)
+    denominator = n * sum_tt - sum_t * sum_t
+    if n < 2 or abs(denominator) < 1e-12:
+        return None
 
-            # Extended regression line (full range)
-            xline = np.linspace(0, 2000, 500)
-            plt.plot(
-                xline,
-                poly1d_fn(xline),
-                color=color,
-                linestyle="--",
-                linewidth=3
+    slope = (n * sum_ty - sum_t * sum_y) / denominator
+    intercept = (sum_y - slope * sum_t) / n
+    return slope, intercept, n
+
+
+def read_change_points(path: Path, t_min: Optional[float], t_max: Optional[float]):
+    times = []
+    values = []
+    previous = None
+
+    with path.open() as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            t, cfc = parse_event_line(line)
+            if not include_time(t, t_min, t_max):
+                continue
+
+            if previous is None or cfc != previous:
+                times.append(t)
+                values.append(cfc)
+                previous = cfc
+
+    return np.array(times), np.array(values)
+
+
+def process_run(path: Path, t_min: Optional[float], t_max: Optional[float]):
+    fit = compute_slope(path, t_min, t_max)
+    if fit is None:
+        return None
+
+    slope, intercept, samples = fit
+    times, values = read_change_points(path, t_min, t_max)
+    return {
+        "slope": slope,
+        "intercept": intercept,
+        "samples": samples,
+        "times": times,
+        "values": values,
+    }
+
+
+def save_cfc_plot(n_value: int, run_results, image_dir: Path):
+    fig, ax = plt.subplots(figsize=(8, 5))
+    colors = plt.cm.tab10(np.linspace(0, 1, max(len(run_results), 1)))
+
+    for idx, result in enumerate(run_results):
+        times = result["times"]
+        values = result["values"]
+        slope = result["slope"]
+        intercept = result["intercept"]
+
+        if len(times) > 0:
+            ax.scatter(times, values, color=colors[idx % len(colors)], s=10)
+            x_min = float(np.min(times))
+            x_max = float(np.max(times))
+        else:
+            x_min = 0.0
+            x_max = 1.0
+
+        xline = np.linspace(x_min, x_max, 200)
+        ax.plot(
+            xline,
+            slope * xline + intercept,
+            color=colors[idx % len(colors)],
+            linewidth=2,
+            linestyle="--",
+            label=f"run {result['run_id']}: J={slope:.4g}",
+        )
+
+    ax.set_xlabel("Tiempo (s)", fontsize=FONT_LABELS)
+    ax.set_ylabel("Cfc(t)", fontsize=FONT_LABELS)
+    ax.tick_params(labelsize=FONT_TICKS)
+    ax.legend(fontsize=FONT_LEGEND, loc="best")
+    fig.tight_layout()
+
+    image_dir.mkdir(parents=True, exist_ok=True)
+    path = image_dir / f"Cfc_fit_N_{n_value}.png"
+    fig.savefig(path, dpi=DPI)
+    plt.close(fig)
+    return path
+
+
+def save_j_vs_n_plot(rows, image_dir: Path):
+    ns = np.array([row["N"] for row in rows], dtype=float)
+    means = np.array([row["J_mean"] for row in rows], dtype=float)
+    stds = np.array([row["J_std"] for row in rows], dtype=float)
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.errorbar(ns, means, yerr=stds, fmt="o-", capsize=5, linewidth=2)
+    ax.set_xlabel("N", fontsize=FONT_LABELS)
+    ax.set_ylabel(r"$\langle J \rangle$", fontsize=FONT_LABELS)
+    ax.tick_params(labelsize=FONT_TICKS)
+    fig.tight_layout()
+
+    image_dir.mkdir(parents=True, exist_ok=True)
+    path = image_dir / "J_vs_N.png"
+    fig.savefig(path, dpi=DPI)
+    plt.close(fig)
+    return path
+
+
+def write_summary(rows, summary_path: Path):
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    with summary_path.open("w") as handle:
+        handle.write("N,J_mean,J_std,runs\n")
+        for row in rows:
+            handle.write(
+                f"{row['N']},{row['J_mean']:.12e},{row['J_std']:.12e},{row['runs']}\n"
             )
 
-        except Exception as e:
-            #Add the single 0,0 scatterpoint so we get the correct legend
-            J_values.append(0)
-            plt.scatter(time, cfcval, color=color, s=15,
-                        label=f"Run {idx} (J=0)")
-            print(f"Error in N={N}, run={idx}:", e)
-    
-    
-    J_mean = np.mean(J_values)
-    J_std = np.std(J_values, ddof=1)
 
-    N_vals.append(N)
-    J_means.append(J_mean)
-    J_stds.append(J_std)
+def main():
+    args = parse_args()
+    output_dir = Path(args.output_dir)
+    image_dir = Path(args.image_dir)
+    summary_path = Path(args.summary)
 
-    plt.grid(False)
-    plt.xlabel("Tiempo (s)", fontsize=FONT_LABELS)
-    plt.ylabel("Cfc(t)", fontsize=FONT_LABELS)
-    plt.tick_params(labelsize=FONT_TICKS)
+    ns = args.ns if args.ns is not None else discover_ns(output_dir)
+    if not ns:
+        ns = DEFAULT_NS
+    if args.test:
+        ns = ns[:2]
 
+    rows = []
+    for n_value in ns:
+        run_results = []
+        print(f"Processing N={n_value}")
 
-    plt.tight_layout()
-    filename = f"images/Cfc_fit_N_{N}.png"
-    plt.savefig(filename, dpi=600)
-    if args.noshow:
+        for run_id in range(args.runs):
+            path = output_dir / f"{n_value}_events{run_id}.txt"
+            if not path.is_file():
+                print(f"  missing {path}, skipping")
+                continue
+
+            result = process_run(path, args.t_min, args.t_max)
+            if result is None:
+                print(f"  insufficient data in {path}, skipping")
+                continue
+
+            result["run_id"] = run_id
+            run_results.append(result)
+            print(f"  run {run_id}: J={result['slope']:.8e}, samples={result['samples']}")
+
+        if not run_results:
+            print(f"  no valid runs for N={n_value}")
+            continue
+
+        slopes = np.array([result["slope"] for result in run_results], dtype=float)
+        ddof = 1 if len(slopes) > 1 else 0
+        row = {
+            "N": n_value,
+            "J_mean": float(np.mean(slopes)),
+            "J_std": float(np.std(slopes, ddof=ddof)),
+            "runs": len(slopes),
+        }
+        rows.append(row)
+
+        plot_path = save_cfc_plot(n_value, run_results, image_dir)
+        print(f"  saved {plot_path}")
+
+    if not rows:
+        raise SystemExit("No valid event files found.")
+
+    write_summary(rows, summary_path)
+    j_plot_path = save_j_vs_n_plot(rows, image_dir)
+    print(f"Summary written to {summary_path}")
+    print(f"Saved {j_plot_path}")
+
+    if args.show:
         plt.show()
 
 
-# ==============================
-# Plot J vs N for all runs
-# ==============================
-N_vals = np.array(N_vals)
-J_means = np.array(J_means)
-J_stds = np.array(J_stds)
-plt.figure(figsize=(8, 5))
-
-plt.errorbar(
-    N_vals,
-    J_means,
-    yerr=J_stds,
-    fmt='o-',
-    capsize=5,
-    capthick=1,
-)
-
-#plt.fill_between(
-#    N_vals,
-#    J_means - J_stds,
-#    J_means + J_stds,
-#    alpha=0.15
-#)
-
-plt.xlabel("N", fontsize=FONT_LABELS)
-plt.ylabel("⟨J⟩", fontsize=FONT_LABELS)
-plt.tick_params(labelsize=FONT_TICKS)
-plt.grid(False)
-
-plt.tight_layout()
-filename = "images/J_vs_N.png"
-plt.savefig(filename, dpi=600)
-if args.noshow:
-    plt.show()
-
-
+if __name__ == "__main__":
+    main()

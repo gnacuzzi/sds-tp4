@@ -267,6 +267,26 @@ Still pending:
 - radial profile workflow integrated with the new simulation
 - `k` sweeps and derived observables
 
+### Scanning Rate From Cfc(t)
+
+After running several realizations, compute the scanning rate `J` from the event files:
+
+```bash
+python3 python/scanning_rate/interpolate.py 10 --ns 100 200 300 400 500 600 700 800 900 1000
+```
+
+This reads `output/<N>_events<run>.txt`, fits `Cfc(t)` linearly for each realization, and writes:
+
+- `images/Cfc_fit_N_<N>.png`
+- `images/J_vs_N.png`
+- `output/scanning_rate_j_summary.csv`
+
+You can restrict the fit interval if needed:
+
+```bash
+python3 python/scanning_rate/interpolate.py 10 --t-min 100 --t-max 500
+```
+
 ### Benchmark Runs
 
 Use the root script below to measure execution time without counting output-file writing:
