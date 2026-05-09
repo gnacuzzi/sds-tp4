@@ -1,11 +1,15 @@
-import numpy as np
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import argparse
 import glob
 import math
 import os
+from pathlib import Path
+
+import matplotlib
+import numpy as np
+from matplotlib import colors
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 #todo: revisar esto:  
 # El único punto conceptual que todavía dejaría anotado para el informe es este: el promedio actual es
@@ -18,10 +22,11 @@ import os
 # =========================
 # CONFIG
 # =========================
-dS = 0.2
+D_S = 0.2
 R_MAX = 40  # radio del sistema
 CENTER = np.array([0.0, 0.0])
 TICK_FONT_SIZE = 15
+OUTPUT_DIR = "images"
 # Fijar limites del eje Y para comparar distintos N con la misma escala.
 # Ejemplo: FIXED_Y_LIMS = (0.0, 1.2)
 #FIXED_Y_LIMS = (0.0, 2.5) #remove comment to set limits
@@ -40,9 +45,8 @@ def read_dynamic_file(filename):
         n = int(lines[i].strip())
         i += 1
 
-        # header may no longer contain valid time (event-based sampling)
         header = lines[i].split()
-        t = 0.0
+        t = float(header[1]) if len(header) >= 2 and header[0] == "t" else 0.0
         i += 1
 
         particles = []
@@ -63,16 +67,27 @@ def read_dynamic_file(filename):
     return snapshots
 
 
+def dynamic_run_id(path):
+    base = os.path.basename(path)
+    run_token = base.split("_dynamic", 1)[1].split(".txt", 1)[0]
+
+    return int(run_token) if run_token.isdigit() else None
+
+
+def filter_dynamic_files(files, run_ids):
+    if run_ids is None:
+        return files
+
+    selected = set(run_ids)
+
+    return [path for path in files if dynamic_run_id(path) in selected]
+
+
 # =========================
 # COMPUTE RADIAL PROFILES
 # =========================
 def compute_profiles(snapshots):
-    # Use only second half of snapshots (approx steady state)
-    if len(snapshots) > 0:
-        start = int(len(snapshots) * 0.5) #todo: chequear o ajustar si el estacionario es antes
-        snapshots = snapshots[start:]
-
-    num_bins = int(R_MAX / dS)
+    num_bins = int(R_MAX / D_S)
 
     rho_acc = np.zeros(num_bins)
     v_acc = np.zeros(num_bins)
@@ -88,7 +103,7 @@ def compute_profiles(snapshots):
             R = np.array([x, y])
             r = np.linalg.norm(R)
 
-            if r == 0 or r >= (R_MAX - 2*dS):
+            if r == 0 or r >= R_MAX:
                 continue
 
             # producto escalar
@@ -98,7 +113,7 @@ def compute_profiles(snapshots):
             if dot >= 0:
                 continue
 
-            bin_idx = int(r / dS)
+            bin_idx = int(r / D_S)
             if bin_idx >= num_bins:
                 continue
 
@@ -122,8 +137,8 @@ def compute_profiles(snapshots):
             v[i] = v_acc[i] / count_acc[i]
 
         # densidad = cantidad / (área * cantidad de snapshots)
-        r_inner = i * dS
-        r_outer = (i + 1) * dS
+        r_inner = i * D_S
+        r_outer = (i + 1) * D_S
         area = math.pi * (r_outer**2 - r_inner**2)
 
         if n_snapshots > 0:
@@ -131,7 +146,7 @@ def compute_profiles(snapshots):
 
     Jin = rho * np.abs(v)
 
-    S = np.arange(num_bins) * dS
+    S = (np.arange(num_bins) + 0.5) * D_S
 
     return S, rho, v, Jin
 
@@ -139,9 +154,10 @@ def compute_profiles(snapshots):
 # =========================
 # MAIN (MULTIPLE RUNS)
 # =========================
-def process_N(n):
+def process_N(n, run_ids=None):
     pattern = f"output/{n}_dynamic*.txt"
-    files = sorted(glob.glob(pattern))
+    files = [path for path in sorted(glob.glob(pattern)) if os.path.getsize(path) > 0]
+    files = filter_dynamic_files(files, run_ids)
 
     if len(files) == 0:
         print(f"No se encontraron archivos para N={n}")
@@ -175,7 +191,7 @@ def process_N(n):
 # PLOT
 # =========================
 def setup_axis(ax, title, ylabel):
-    ax.set_xlabel("S (distancia al centro)", fontsize=14)
+    ax.set_xlabel("S (m)", fontsize=14)
     ax.set_ylabel(ylabel, fontsize=14)
     ax.tick_params(labelsize=TICK_FONT_SIZE)
 
@@ -194,7 +210,7 @@ def save_zoomed_j_profile(S, J, n):
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(S, J, color="tab:green")
 
-    x_min, x_max = 2.0, 5.0
+    x_min, x_max = 1.5, 5.0
     ax.set_xlim(x_min, x_max)
 
     mask = (S >= x_min) & (S <= x_max)
@@ -213,12 +229,12 @@ def save_zoomed_j_profile(S, J, n):
 
     setup_axis(ax, rf"$J_{{\mathrm{{in}}}}(S)$ con zoom para N = {n}", r"$J_{\mathrm{in}}(S)$")
     fig.tight_layout()
-    fig.savefig(f"images/radial_Jin_zoom_N{n}.png", dpi=300)
+    fig.savefig(f"{OUTPUT_DIR}/radial_Jin_zoom_N{n}.png", dpi=300)
     plt.close(fig)
 
 
 def plot_profiles(S, rho, v, J, n):
-    os.makedirs("images", exist_ok=True)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     plt.figure(figsize=(8, 5))
 
@@ -226,7 +242,7 @@ def plot_profiles(S, rho, v, J, n):
     plt.plot(S, np.abs(v), label=r"$\left|\langle v_f^{\mathrm{in}}\rangle(S)\right|$")
     plt.plot(S, J, label=r"$J_{\mathrm{in}}(S)$")
 
-    plt.xlabel("S (distancia al centro)", fontsize=14)
+    plt.xlabel("S (m)", fontsize=14)
     plt.ylabel("Valor", fontsize=14)
     plt.xticks(fontsize=TICK_FONT_SIZE)
     plt.yticks(fontsize=TICK_FONT_SIZE)
@@ -237,14 +253,14 @@ def plot_profiles(S, rho, v, J, n):
     plt.legend(fontsize=12)
     plt.tight_layout()
 
-    plt.savefig(f"images/radial_profiles_N{n}.png", dpi=300)
+    plt.savefig(f"{OUTPUT_DIR}/radial_profiles_N{n}.png", dpi=300)
     plt.close()
 
     save_single_profile(
         S,
         rho,
         n,
-        f"images/radial_rho_N{n}.png",
+        f"{OUTPUT_DIR}/radial_rho_N{n}.png",
         rf"$\langle \rho_f^{{\mathrm{{in}}}}\rangle(S)$ para N = {n}",
         r"$\langle \rho_f^{\mathrm{in}}\rangle(S)$",
         "tab:blue"
@@ -254,7 +270,7 @@ def plot_profiles(S, rho, v, J, n):
         S,
         np.abs(v),
         n,
-        f"images/radial_velocity_N{n}.png",
+        f"{OUTPUT_DIR}/radial_velocity_N{n}.png",
         rf"$\left|\langle v_f^{{\mathrm{{in}}}}\rangle(S)\right|$ para N = {n}",
         r"$\left|\langle v_f^{\mathrm{in}}\rangle(S)\right|$",
         "tab:orange"
@@ -264,7 +280,7 @@ def plot_profiles(S, rho, v, J, n):
         S,
         J,
         n,
-        f"images/radial_Jin_N{n}.png",
+        f"{OUTPUT_DIR}/radial_Jin_N{n}.png",
         rf"$J_{{\mathrm{{in}}}}(S)$ para N = {n}",
         r"$J_{\mathrm{in}}(S)$",
         "tab:green"
@@ -301,7 +317,7 @@ def plot_profiles_multiscale(S, rho, v, J, n):
         label=r"$J_{\mathrm{in}}(S)$"
     )
 
-    ax_rho.set_xlabel("S (distancia al centro)", fontsize=14)
+    ax_rho.set_xlabel("S (m)", fontsize=14)
     ax_rho.set_ylabel(r"$\langle \rho_f^{\mathrm{in}}\rangle(S)$", color="tab:blue", fontsize=14)
     ax_v.set_ylabel(r"$\left|\langle v_f^{\mathrm{in}}\rangle(S)\right|$", color="tab:orange", fontsize=14)
     ax_j.set_ylabel(r"$J_{\mathrm{in}}(S)$", color="tab:green", fontsize=14)
@@ -315,25 +331,119 @@ def plot_profiles_multiscale(S, rho, v, J, n):
     ax_rho.legend(lines, [line.get_label() for line in lines], fontsize=11, loc="upper left")
 
     fig.tight_layout()
-    fig.savefig(f"images/radial_profiles_multiscale_N{n}.png", dpi=300, bbox_inches="tight")
+    fig.savefig(f"{OUTPUT_DIR}/radial_profiles_multiscale_N{n}.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
-# =========================
-# ENTRY POINT
-# =========================
+def discover_ns():
+    ns = set()
+
+    for path in glob.glob("output/*_dynamic*.txt"):
+        if os.path.getsize(path) == 0:
+            continue
+
+        base = os.path.basename(path)
+        n_token = base.split("_dynamic", 1)[0]
+
+        if n_token.isdigit():
+            ns.add(int(n_token))
+
+    return sorted(ns)
+
+
+def plot_all_n_profiles(results, metric, ylabel, output_file):
+    fig, ax = plt.subplots(figsize=(9, 5.5))
+    ns = sorted(results.keys())
+    cmap = plt.get_cmap("viridis")
+    norm = colors.Normalize(vmin=min(ns), vmax=max(ns))
+
+    for n in ns:
+        S, rho, v, J = results[n]
+        values = {
+            "rho": rho,
+            "velocity": np.abs(v),
+            "jin": J,
+        }[metric]
+
+        ax.plot(S, values, color=cmap(norm(n)), linewidth=2)
+
+    ax.set_xlabel("S (m)", fontsize=16)
+    ax.set_ylabel(ylabel, fontsize=16)
+    ax.tick_params(labelsize=14)
+
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=ax)
+    cbar.set_label("N", fontsize=14)
+    cbar.ax.tick_params(labelsize=12)
+
+    fig.tight_layout()
+    fig.savefig(output_file, dpi=300)
+    plt.close(fig)
+
+
+def plot_all_n(results):
+    Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+
+    plot_all_n_profiles(
+        results,
+        "rho",
+        r"$\langle \rho_f^{\mathrm{in}}\rangle(S)$",
+        f"{OUTPUT_DIR}/radial_rho_all_N.png",
+    )
+    plot_all_n_profiles(
+        results,
+        "velocity",
+        r"$\left|\langle v_f^{\mathrm{in}}\rangle(S)\right|$",
+        f"{OUTPUT_DIR}/radial_velocity_all_N.png",
+    )
+    plot_all_n_profiles(
+        results,
+        "jin",
+        r"$J_{\mathrm{in}}(S)$",
+        f"{OUTPUT_DIR}/radial_Jin_all_N.png",
+    )
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Compute radial profiles for fresh incoming particles.")
+    parser.add_argument("N", type=int, nargs="?", help="Single N to process.")
+    parser.add_argument("--all", action="store_true", help="Process all available N values.")
+    parser.add_argument("--ns", type=int, nargs="+", default=None, help="Specific N values to process.")
+    parser.add_argument("--run-ids", type=int, nargs="+", default=None, help="Only process these run ids.")
+
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+
+    if args.all:
+        ns = discover_ns()
+    elif args.ns is not None:
+        ns = args.ns
+    elif args.N is not None:
+        ns = [args.N]
+    else:
+        raise SystemExit("Usage: python3 python/scanning_rate/radial_profiles.py N | --all | --ns N ...")
+
+    results = {}
+
+    for n in ns:
+        S, rho, v, J = process_N(n, run_ids=args.run_ids)
+
+        if S is None:
+            continue
+
+        results[n] = (S, rho, v, J)
+        plot_profiles(S, rho, v, J, n)
+
+    if args.all or args.ns is not None:
+        if not results:
+            raise SystemExit("No valid radial data found.")
+
+        plot_all_n(results)
+
+
 if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) < 2:
-        print("Uso: python radial_profiles.py N")
-        exit(1)
-
-    N = int(sys.argv[1])
-
-    S, rho, v, J = process_N(N)
-
-    if S is None:
-        exit(0)
-
-    plot_profiles(S, rho, v, J, N)
+    main()

@@ -1,6 +1,8 @@
 import argparse
 import glob
 import os
+import sys
+from pathlib import Path
 
 import matplotlib
 import numpy as np
@@ -9,6 +11,7 @@ from matplotlib import colors
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from python.scanning_rate.radial_profiles import process_N
 
 
@@ -16,7 +19,7 @@ from python.scanning_rate.radial_profiles import process_N
 # CONFIG
 # =========================
 OUTPUT_DIR = "images"
-X_MIN = 2.0
+X_MIN = 1.5
 X_MAX = 5.0
 TICK_FONT_SIZE = 15
 
@@ -31,6 +34,13 @@ def parse_args():
         nargs="+",
         default=None,
         help="Valores especificos de N a procesar (ejemplo: --ns 50 100 200).",
+    )
+    parser.add_argument(
+        "--run-ids",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Solo procesar estos run ids.",
     )
     return parser.parse_args()
 
@@ -95,7 +105,7 @@ def main():
 
     for n in ns:
         print(f"Procesando N = {n}")
-        S, _, _, J = process_N(n)
+        S, _, _, J = process_N(n, run_ids=args.run_ids)
 
         if S is None:
             continue
@@ -126,9 +136,15 @@ def main():
         delta = 0.1 * (abs(y_min) + 1.0)
         ax.set_ylim(y_min - delta, y_max + delta)
 
-    ax.set_xlabel("S (distancia al centro)", fontsize=14)
+    ax.set_xlabel("S (m)", fontsize=14)
     ax.set_ylabel(r"$J_{\mathrm{in}}(S)$", fontsize=14)
     ax.tick_params(labelsize=TICK_FONT_SIZE)
+
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=ax)
+    cbar.set_label("N", fontsize=14)
+    cbar.ax.tick_params(labelsize=12)
 
     fig.tight_layout()
     out_path = f"{OUTPUT_DIR}/radial_Jin_zoom_all_N.png"
