@@ -88,7 +88,7 @@ static double compute_forces(
                         j_index != -1;
                         j_index = cell_index->next[j_index]
                     ) {
-                        if (j_index <= i_index) {
+                        if (neighbor_cell == cell && j_index <= i_index) {
                             continue;
                         }
 
