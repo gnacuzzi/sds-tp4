@@ -233,7 +233,7 @@ Each System 2 run currently generates:
 Current meaning:
 
 - `dynamic`: saved particle states for animation and spatial post-processing
-- `cfc`: time series with `t`, `Cfc(t)`, and `fu(t)`
+- `cfc`: time series with `t` and `Cfc(t)`
 - `energy`: kinetic/potential energy components and total energy
 
 ### Visualize a Run

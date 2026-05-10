@@ -59,7 +59,6 @@ def parse_dynamic_file(filename):
 
         t = float(header[1])
         cfc = int(header[2]) if len(header) > 2 else 0
-        fu = float(header[3]) if len(header) > 3 else None
         i += 1
 
         particles = []
@@ -77,7 +76,7 @@ def parse_dynamic_file(filename):
             )
             i += 1
 
-        frames.append((t, particles, cfc, fu))
+        frames.append((t, particles, cfc))
 
     return frames
 
@@ -127,7 +126,7 @@ def main():
     )
 
     def update(frame_idx):
-        t, particles, cfc, fu = frames[frame_idx]
+        t, particles, cfc = frames[frame_idx]
 
         for patch, particle in zip(particle_patches, particles):
             patch.center = (particle["x"], particle["y"])
@@ -136,10 +135,7 @@ def main():
             else:
                 patch.set_color("purple")
 
-        if fu is None:
-            info_text.set_text(f"t = {t:.2f}\ncfc = {cfc}")
-        else:
-            info_text.set_text(f"t = {t:.2f}\ncfc = {cfc}\nfu = {fu:.3f}")
+        info_text.set_text(f"t = {t:.2f}\ncfc = {cfc}")
 
         return particle_patches
 

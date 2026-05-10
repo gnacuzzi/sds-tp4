@@ -71,10 +71,9 @@ bool write_dynamic_snapshot(
     fprintf(output->dynamic_file, "%zu\n", count);
     fprintf(
         output->dynamic_file,
-        "t %.12f %zu %.12f\n",
+        "t %.12f %zu\n",
         observables->time,
-        observables->cfc,
-        observables->fu
+        observables->cfc
     );
 
     for (i = 0; i < count; ++i) {
@@ -96,10 +95,9 @@ bool write_dynamic_snapshot(
 bool write_cfc_line(scan_output_t *output, const scan_observables_t *observables) {
     fprintf(
         output->cfc_file,
-        "t %.12f %zu %.12f\n",
+        "t %.12f %zu\n",
         observables->time,
-        observables->cfc,
-        observables->fu
+        observables->cfc
     );
     return !ferror(output->cfc_file);
 }

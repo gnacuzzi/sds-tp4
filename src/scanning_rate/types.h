@@ -40,7 +40,6 @@ typedef struct {
 typedef struct {
     double time;
     size_t cfc;
-    double fu;
     double kinetic;
     double potential_pairs;
     double potential_wall;
@@ -51,7 +50,6 @@ typedef struct {
     double elapsed_seconds;
     size_t steps;
     size_t cfc;
-    double fu;
 } scan_summary_t;
 
 #endif

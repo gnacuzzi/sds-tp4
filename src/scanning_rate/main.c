@@ -159,6 +159,5 @@ int main(int argc, char **argv) {
     printf("simulation_time=%.9f\n", summary.elapsed_seconds);
     printf("steps=%zu\n", summary.steps);
     printf("cfc=%zu\n", summary.cfc);
-    printf("fu=%.12f\n", summary.fu);
     return EXIT_SUCCESS;
 }

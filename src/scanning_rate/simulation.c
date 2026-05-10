@@ -153,19 +153,6 @@ static double compute_forces(
     return kinetic;
 }
 
-static double compute_fu(const particle_t *particles, size_t count) {
-    size_t i;
-    size_t used = 0;
-
-    for (i = 0; i < count; ++i) {
-        if (particles[i].state == PARTICLE_USED) {
-            used++;
-        }
-    }
-
-    return (double) used / (double) count;
-}
-
 static void update_states(particle_t *particles, size_t count, size_t *cfc) {
     size_t i;
 
@@ -197,7 +184,6 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
     double wall_potential = 0.0;
     double obstacle_potential = 0.0;
     double kinetic = 0.0;
-    double final_fu = 0.0;
     const clock_t start_clock = clock();
 
     if (sample_every == 0) {
@@ -238,7 +224,6 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
 
         observables.time = time;
         observables.cfc = cfc;
-        observables.fu = compute_fu(particles, config->count);
         observables.kinetic = kinetic;
         observables.potential_pairs = pair_potential;
         observables.potential_wall = wall_potential;
@@ -304,7 +289,6 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
         }
     }
 
-    final_fu = compute_fu(particles, config->count);
     cell_index_free(&cell_index);
     free(particles);
 
@@ -314,7 +298,6 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
         summary->elapsed_seconds = (double) (end_clock - start_clock) / (double) CLOCKS_PER_SEC;
         summary->steps = total_steps;
         summary->cfc = cfc;
-        summary->fu = final_fu;
     }
 
     return true;

@@ -110,7 +110,6 @@ def parse_dynamic_file(filename):
 
         t = float(time_tokens[1])
         cfc = int(time_tokens[2]) if len(time_tokens) > 2 else None
-        fu = float(time_tokens[3]) if len(time_tokens) > 3 else None
         i += 1
 
         particles = []
@@ -128,7 +127,7 @@ def parse_dynamic_file(filename):
             })
             i += 1
 
-        frames.append((t, particles, cfc, fu))
+        frames.append((t, particles, cfc))
 
     return frames
 
@@ -238,7 +237,7 @@ def build_animation(frames, args):
     )
 
     def update(frame_idx):
-        t, particles, cfc, fu = frames[frame_idx]
+        t, particles, cfc = frames[frame_idx]
 
         fresh_count = 0
         used_count = 0
