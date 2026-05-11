@@ -1,4 +1,5 @@
 import argparse
+import csv
 import glob
 import os
 from pathlib import Path
@@ -18,9 +19,21 @@ OUTPUT_DIR = "images"
 DEFAULT_S_MIN = 1.5
 DEFAULT_S_MAX = 5.0
 TICK_FONT_SIZE = 15
+DEFAULT_VS_N_CSV = Path("output/radial_vs_N_tp4.csv")
 
 
 def discover_ns():
+    if DEFAULT_VS_N_CSV.is_file():
+        ns = set()
+
+        with DEFAULT_VS_N_CSV.open(newline="") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                ns.add(int(row["N"]))
+
+        if ns:
+            return sorted(ns)
+
     ns = set()
 
     for path in glob.glob("output/*_dynamic*.txt"):
@@ -44,8 +57,40 @@ def parse_args():
     parser.add_argument("--s-min", type=float, default=DEFAULT_S_MIN, help="Lower S bound in meters.")
     parser.add_argument("--s-max", type=float, default=DEFAULT_S_MAX, help="Upper S bound in meters.")
     parser.add_argument("--run-ids", type=int, nargs="+", default=None, help="Only process these run ids.")
+    parser.add_argument(
+        "--vs-n-csv",
+        default=str(DEFAULT_VS_N_CSV),
+        help="Use this radial-vs-N CSV if it exists.",
+    )
 
     return parser.parse_args()
+
+
+def read_layer_average_from_csv(n, csv_path):
+    csv_path = Path(csv_path)
+
+    if not csv_path.is_file():
+        return None
+
+    with csv_path.open(newline="") as handle:
+        reader = csv.DictReader(handle)
+
+        for row in reader:
+            if int(row["N"]) == n:
+                return {
+                    "S_min": float(row["S_min"]),
+                    "S_max": float(row["S_max"]),
+                    "samples": int(row["runs"]),
+                    "rho_mean": float(row["rho_mean"]),
+                    "rho_std": float(row["rho_std"]),
+                    "v_mean": float(row["v_mean"]),
+                    "v_abs_mean": float(row["v_abs_mean"]),
+                    "v_abs_std": float(row["v_abs_std"]),
+                    "j_mean": float(row["jin_mean"]),
+                    "j_std": float(row["jin_std"]),
+                }
+
+    return None
 
 
 def collect_layer_averages(n, s_min, s_max, run_ids=None):
@@ -178,7 +223,11 @@ def main():
 
     for n in ns_to_process:
         print(f"Procesando N = {n}")
-        values = collect_layer_averages(n, args.s_min, args.s_max, run_ids=args.run_ids)
+        values = read_layer_average_from_csv(n, args.vs_n_csv)
+        if values is not None:
+            print(f"Usando promedio radial desde {args.vs_n_csv} para N={n}")
+        else:
+            values = collect_layer_averages(n, args.s_min, args.s_max, run_ids=args.run_ids)
 
         if values is None:
             continue

@@ -1,4 +1,5 @@
 import argparse
+import csv
 import glob
 import math
 import os
@@ -27,6 +28,9 @@ R_MAX = 40  # radio del sistema
 CENTER = np.array([0.0, 0.0])
 TICK_FONT_SIZE = 15
 OUTPUT_DIR = "images"
+DEFAULT_PROFILE_CSV = Path("output/radial_profiles_tp4.csv")
+DEFAULT_PLOT_S_MIN = 1.8
+DEFAULT_PLOT_S_MAX = 38.0
 # Fijar limites del eje Y para comparar distintos N con la misma escala.
 # Ejemplo: FIXED_Y_LIMS = (0.0, 1.2)
 #FIXED_Y_LIMS = (0.0, 2.5) #remove comment to set limits
@@ -81,6 +85,33 @@ def filter_dynamic_files(files, run_ids):
     selected = set(run_ids)
 
     return [path for path in files if dynamic_run_id(path) in selected]
+
+
+def read_profile_from_csv(n, csv_path=DEFAULT_PROFILE_CSV):
+    csv_path = Path(csv_path)
+
+    if not csv_path.is_file():
+        return None
+
+    rows = []
+    with csv_path.open(newline="") as handle:
+        reader = csv.DictReader(handle)
+
+        for row in reader:
+            if int(row["N"]) == n:
+                rows.append(row)
+
+    if not rows:
+        return None
+
+    rows.sort(key=lambda row: float(row["S"]))
+
+    S = np.array([float(row["S"]) for row in rows], dtype=float)
+    rho = np.array([float(row["rho_mean"]) for row in rows], dtype=float)
+    v = np.array([float(row["v_mean"]) for row in rows], dtype=float)
+    J = np.array([float(row["jin_mean"]) for row in rows], dtype=float)
+
+    return S, rho, v, J
 
 
 # =========================
@@ -154,7 +185,12 @@ def compute_profiles(snapshots):
 # =========================
 # MAIN (MULTIPLE RUNS)
 # =========================
-def process_N(n, run_ids=None):
+def process_N(n, run_ids=None, profiles_csv=DEFAULT_PROFILE_CSV):
+    csv_profile = read_profile_from_csv(n, profiles_csv)
+    if csv_profile is not None:
+        print(f"Usando perfil radial desde {profiles_csv} para N={n}")
+        return csv_profile
+
     pattern = f"output/{n}_dynamic*.txt"
     files = [path for path in sorted(glob.glob(pattern)) if os.path.getsize(path) > 0]
     files = filter_dynamic_files(files, run_ids)
@@ -236,59 +272,7 @@ def save_zoomed_j_profile(S, J, n):
 def plot_profiles(S, rho, v, J, n):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    plt.figure(figsize=(8, 5))
-
-    plt.plot(S, rho, label=r"$\langle \rho_f^{\mathrm{in}}\rangle(S)$")
-    plt.plot(S, np.abs(v), label=r"$\left|\langle v_f^{\mathrm{in}}\rangle(S)\right|$")
-    plt.plot(S, J, label=r"$J_{\mathrm{in}}(S)$")
-
-    plt.xlabel("S (m)", fontsize=14)
-    plt.ylabel("Valor", fontsize=14)
-    plt.xticks(fontsize=TICK_FONT_SIZE)
-    plt.yticks(fontsize=TICK_FONT_SIZE)
-
-#    if FIXED_Y_LIMS is not None: #remove comment to set limits
-#        plt.ylim(FIXED_Y_LIMS)   #remove comment to set limits
-
-    plt.legend(fontsize=12)
-    plt.tight_layout()
-
-    plt.savefig(f"{OUTPUT_DIR}/radial_profiles_N{n}.png", dpi=300)
-    plt.close()
-
-    save_single_profile(
-        S,
-        rho,
-        n,
-        f"{OUTPUT_DIR}/radial_rho_N{n}.png",
-        rf"$\langle \rho_f^{{\mathrm{{in}}}}\rangle(S)$ para N = {n}",
-        r"$\langle \rho_f^{\mathrm{in}}\rangle(S)$",
-        "tab:blue"
-    )
-
-    save_single_profile(
-        S,
-        np.abs(v),
-        n,
-        f"{OUTPUT_DIR}/radial_velocity_N{n}.png",
-        rf"$\left|\langle v_f^{{\mathrm{{in}}}}\rangle(S)\right|$ para N = {n}",
-        r"$\left|\langle v_f^{\mathrm{in}}\rangle(S)\right|$",
-        "tab:orange"
-    )
-
-    save_single_profile(
-        S,
-        J,
-        n,
-        f"{OUTPUT_DIR}/radial_Jin_N{n}.png",
-        rf"$J_{{\mathrm{{in}}}}(S)$ para N = {n}",
-        r"$J_{\mathrm{in}}(S)$",
-        "tab:green"
-    )
-
-    save_zoomed_j_profile(S, J, n)
-
-    plot_profiles_multiscale(S, rho, v, J, n)
+    return
 
 
 def plot_profiles_multiscale(S, rho, v, J, n):
@@ -336,6 +320,17 @@ def plot_profiles_multiscale(S, rho, v, J, n):
 
 
 def discover_ns():
+    if DEFAULT_PROFILE_CSV.is_file():
+        ns = set()
+
+        with DEFAULT_PROFILE_CSV.open(newline="") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                ns.add(int(row["N"]))
+
+        if ns:
+            return sorted(ns)
+
     ns = set()
 
     for path in glob.glob("output/*_dynamic*.txt"):
@@ -351,7 +346,7 @@ def discover_ns():
     return sorted(ns)
 
 
-def plot_all_n_profiles(results, metric, ylabel, output_file):
+def plot_all_n_profiles(results, metric, ylabel, output_file, s_min=DEFAULT_PLOT_S_MIN, s_max=DEFAULT_PLOT_S_MAX):
     fig, ax = plt.subplots(figsize=(9, 5.5))
     ns = sorted(results.keys())
     cmap = plt.get_cmap("viridis")
@@ -365,8 +360,13 @@ def plot_all_n_profiles(results, metric, ylabel, output_file):
             "jin": J,
         }[metric]
 
-        ax.plot(S, values, color=cmap(norm(n)), linewidth=2)
+        mask = (S >= s_min) & (S <= s_max)
+        if not np.any(mask):
+            continue
 
+        ax.plot(S[mask], values[mask], color=cmap(norm(n)), linewidth=2)
+
+    ax.set_xlim(s_min, s_max)
     ax.set_xlabel("S (m)", fontsize=16)
     ax.set_ylabel(ylabel, fontsize=16)
     ax.tick_params(labelsize=14)
@@ -382,7 +382,7 @@ def plot_all_n_profiles(results, metric, ylabel, output_file):
     plt.close(fig)
 
 
-def plot_all_n(results):
+def plot_all_n(results, s_min=DEFAULT_PLOT_S_MIN, s_max=DEFAULT_PLOT_S_MAX):
     Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
     plot_all_n_profiles(
@@ -390,18 +390,24 @@ def plot_all_n(results):
         "rho",
         r"$\langle \rho_f^{\mathrm{in}}\rangle(S)$",
         f"{OUTPUT_DIR}/radial_rho_all_N.png",
+        s_min=s_min,
+        s_max=s_max,
     )
     plot_all_n_profiles(
         results,
         "velocity",
         r"$\left|\langle v_f^{\mathrm{in}}\rangle(S)\right|$",
         f"{OUTPUT_DIR}/radial_velocity_all_N.png",
+        s_min=s_min,
+        s_max=s_max,
     )
     plot_all_n_profiles(
         results,
         "jin",
         r"$J_{\mathrm{in}}(S)$",
         f"{OUTPUT_DIR}/radial_Jin_all_N.png",
+        s_min=s_min,
+        s_max=s_max,
     )
 
 
@@ -411,6 +417,13 @@ def parse_args():
     parser.add_argument("--all", action="store_true", help="Process all available N values.")
     parser.add_argument("--ns", type=int, nargs="+", default=None, help="Specific N values to process.")
     parser.add_argument("--run-ids", type=int, nargs="+", default=None, help="Only process these run ids.")
+    parser.add_argument(
+        "--profiles-csv",
+        default=str(DEFAULT_PROFILE_CSV),
+        help="Use this radial profile CSV if it exists.",
+    )
+    parser.add_argument("--plot-s-min", type=float, default=DEFAULT_PLOT_S_MIN, help="Minimum S shown in all-N profile plots.")
+    parser.add_argument("--plot-s-max", type=float, default=DEFAULT_PLOT_S_MAX, help="Maximum S shown in all-N profile plots.")
 
     return parser.parse_args()
 
@@ -430,19 +443,18 @@ def main():
     results = {}
 
     for n in ns:
-        S, rho, v, J = process_N(n, run_ids=args.run_ids)
+        S, rho, v, J = process_N(n, run_ids=args.run_ids, profiles_csv=args.profiles_csv)
 
         if S is None:
             continue
 
         results[n] = (S, rho, v, J)
-        plot_profiles(S, rho, v, J, n)
 
     if args.all or args.ns is not None:
         if not results:
             raise SystemExit("No valid radial data found.")
 
-        plot_all_n(results)
+        plot_all_n(results, s_min=args.plot_s_min, s_max=args.plot_s_max)
 
 
 if __name__ == "__main__":

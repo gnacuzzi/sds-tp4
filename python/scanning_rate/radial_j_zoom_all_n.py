@@ -1,4 +1,5 @@
 import argparse
+import csv
 import glob
 import os
 import sys
@@ -22,6 +23,7 @@ OUTPUT_DIR = "images"
 X_MIN = 1.5
 X_MAX = 5.0
 TICK_FONT_SIZE = 15
+DEFAULT_PROFILE_CSV = Path("output/radial_profiles_tp4.csv")
 
 
 def parse_args():
@@ -46,6 +48,17 @@ def parse_args():
 
 
 def discover_ns():
+    if DEFAULT_PROFILE_CSV.is_file():
+        ns = set()
+
+        with DEFAULT_PROFILE_CSV.open(newline="") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                ns.add(int(row["N"]))
+
+        if ns:
+            return sorted(ns)
+
     files = glob.glob("output/*_dynamic*.txt")
     ns = set()
 
