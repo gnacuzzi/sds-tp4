@@ -1,5 +1,11 @@
 import csv
+import sys
+from pathlib import Path
+
 import matplotlib.pyplot as plt
+
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from python.plot_format import apply_scientific_y
 
 
 ns = []
@@ -28,6 +34,7 @@ plt.xlabel("Number of Particles (N)", fontsize=14)
 plt.ylabel("Execution Time (s)", fontsize=14)
 plt.xticks(fontsize=14)
 plt.yticks(fontsize=14)
+apply_scientific_y(plt.gca(), fontsize=14)
 
 #plt.ylim(0, max(times) * 1.5)
 plt.tight_layout()

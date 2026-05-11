@@ -2,6 +2,7 @@ import argparse
 import csv
 import os
 from pathlib import Path
+import sys
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
 os.environ.setdefault("XDG_CACHE_HOME", "/tmp")
@@ -10,6 +11,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from python.plot_format import apply_scientific_y
 
 
 DEFAULT_INPUT_DIR = Path("output")
@@ -84,6 +88,7 @@ def plot_solution(method: str, data: dict[str, np.ndarray], metrics: dict[str, f
     axes[1].set_ylabel("Velocidad v(t)", fontsize=LABEL_SIZE)
     axes[1].tick_params(axis="both", labelsize=TICK_SIZE)
     axes[1].legend(fontsize=LEGEND_SIZE)
+    apply_scientific_y(axes[0], axes[1], fontsize=TICK_SIZE)
 
     figure.suptitle(
         f"Oscilador amortiguado: {method}\n"
@@ -163,6 +168,7 @@ def plot_combined_position(
     axis.set_xlabel("Tiempo", fontsize=LABEL_SIZE)
     axis.set_ylabel("Posicion x(t)", fontsize=LABEL_SIZE)
     axis.tick_params(axis="both", labelsize=TICK_SIZE)
+    apply_scientific_y(axis, fontsize=TICK_SIZE)
     axis.legend(fontsize=LEGEND_SIZE, loc="best", ncols=2)
     figure.tight_layout()
 

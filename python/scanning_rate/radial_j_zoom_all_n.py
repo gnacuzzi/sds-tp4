@@ -13,6 +13,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
+from python.plot_format import apply_scientific_y
 from python.scanning_rate.radial_profiles import process_N
 
 
@@ -152,6 +153,7 @@ def main():
     ax.set_xlabel("S (m)", fontsize=14)
     ax.set_ylabel(r"$J_{\mathrm{in}}(S)$", fontsize=14)
     ax.tick_params(labelsize=TICK_FONT_SIZE)
+    apply_scientific_y(ax, fontsize=TICK_FONT_SIZE)
 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])

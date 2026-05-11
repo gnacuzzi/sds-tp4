@@ -4,6 +4,7 @@ import glob
 import math
 import os
 from pathlib import Path
+import sys
 
 import matplotlib
 import numpy as np
@@ -11,6 +12,9 @@ from matplotlib import colors
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from python.plot_format import apply_scientific_y
 
 #todo: revisar esto:  
 # El único punto conceptual que todavía dejaría anotado para el informe es este: el promedio actual es
@@ -237,6 +241,7 @@ def save_single_profile(S, values, n, filename, title, ylabel, color):
     ax.plot(S, values, color=color)
 
     setup_axis(ax, title, ylabel)
+    apply_scientific_y(ax, fontsize=TICK_FONT_SIZE)
     fig.tight_layout()
     fig.savefig(filename, dpi=300)
     plt.close(fig)
@@ -264,6 +269,7 @@ def save_zoomed_j_profile(S, J, n):
             ax.set_ylim(y_min - delta, y_max + delta)
 
     setup_axis(ax, rf"$J_{{\mathrm{{in}}}}(S)$ con zoom para N = {n}", r"$J_{\mathrm{in}}(S)$")
+    apply_scientific_y(ax, fontsize=TICK_FONT_SIZE)
     fig.tight_layout()
     fig.savefig(f"{OUTPUT_DIR}/radial_Jin_zoom_N{n}.png", dpi=300)
     plt.close(fig)
@@ -310,6 +316,7 @@ def plot_profiles_multiscale(S, rho, v, J, n):
     ax_v.tick_params(axis="y", labelcolor="tab:orange", labelsize=TICK_FONT_SIZE)
     ax_j.tick_params(axis="y", labelcolor="tab:green", labelsize=TICK_FONT_SIZE)
     ax_rho.tick_params(axis="x", labelsize=TICK_FONT_SIZE)
+    apply_scientific_y(ax_rho, ax_v, ax_j, fontsize=TICK_FONT_SIZE)
 
     lines = [line_rho, line_v, line_j]
     ax_rho.legend(lines, [line.get_label() for line in lines], fontsize=11, loc="upper left")
@@ -370,6 +377,7 @@ def plot_all_n_profiles(results, metric, ylabel, output_file, s_min=DEFAULT_PLOT
     ax.set_xlabel("S (m)", fontsize=16)
     ax.set_ylabel(ylabel, fontsize=16)
     ax.tick_params(labelsize=14)
+    apply_scientific_y(ax, fontsize=14)
 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])

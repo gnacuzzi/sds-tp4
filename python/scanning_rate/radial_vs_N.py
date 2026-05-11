@@ -12,6 +12,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
+from python.plot_format import apply_scientific_y
 from python.scanning_rate.radial_profiles import compute_profiles, dynamic_run_id, read_dynamic_file
 
 
@@ -77,9 +78,11 @@ def read_layer_average_from_csv(n, csv_path):
 
         for row in reader:
             if int(row["N"]) == n:
+                s_min = row["S_min"] if "S_min" in row else row.get("S", "")
+                s_max = row["S_max"] if "S_max" in row else row.get("S", "")
                 return {
-                    "S_min": float(row["S_min"]),
-                    "S_max": float(row["S_max"]),
+                    "S_min": float(s_min),
+                    "S_max": float(s_max),
                     "samples": int(row["runs"]),
                     "rho_mean": float(row["rho_mean"]),
                     "rho_std": float(row["rho_std"]),
@@ -162,6 +165,7 @@ def save_single_vs_n(ns, values, errors, filename, ylabel, color):
         color=color,
     )
     setup_axis(ax, ylabel)
+    apply_scientific_y(ax, fontsize=TICK_FONT_SIZE)
     fig.tight_layout()
     fig.savefig(filename, dpi=300)
     plt.close(fig)
@@ -191,6 +195,7 @@ def save_multiscale_vs_n(ns, rho_vals, rho_errs, v_vals, v_errs, j_vals, j_errs,
     ax_v.tick_params(axis="y", labelcolor="tab:orange", labelsize=TICK_FONT_SIZE)
     ax_j.tick_params(axis="y", labelcolor="tab:green", labelsize=TICK_FONT_SIZE)
     ax_rho.tick_params(axis="x", labelsize=TICK_FONT_SIZE)
+    apply_scientific_y(ax_rho, ax_v, ax_j, fontsize=TICK_FONT_SIZE)
 
     ax_rho.legend(
         [rho_plot, v_plot, j_plot],

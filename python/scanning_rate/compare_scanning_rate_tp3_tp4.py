@@ -2,6 +2,7 @@ import argparse
 import glob
 import os
 import re
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -9,6 +10,9 @@ import numpy as np
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from python.plot_format import apply_scientific_y
 
 
 TP3_DIR = Path("output_tp3")
@@ -216,6 +220,7 @@ def plot_comparison(tp3_rows, tp4_rows, image_dir: Path):
     ax.set_xlabel("N", fontsize=FONT_LABELS)
     ax.set_ylabel(r"$\langle J \rangle$", fontsize=FONT_LABELS)
     ax.tick_params(labelsize=FONT_TICKS)
+    apply_scientific_y(ax, fontsize=FONT_TICKS)
     ax.legend(fontsize=FONT_LEGEND)
     fig.tight_layout()
 

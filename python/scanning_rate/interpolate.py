@@ -2,6 +2,7 @@ import argparse
 import glob
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -13,6 +14,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from python.plot_format import apply_scientific_y
 
 
 DEFAULT_OUTPUT_DIR = Path("output")
@@ -210,6 +214,7 @@ def save_cfc_plot(n_value: int, run_results, image_dir: Path):
     ax.set_xlabel("Tiempo (s)", fontsize=FONT_LABELS)
     ax.set_ylabel("Cfc(t)", fontsize=FONT_LABELS)
     ax.tick_params(labelsize=FONT_TICKS)
+    apply_scientific_y(ax, fontsize=FONT_TICKS)
     ax.legend(fontsize=FONT_LEGEND, loc="best")
     fig.tight_layout()
 
@@ -230,6 +235,7 @@ def save_j_vs_n_plot(rows, image_dir: Path):
     ax.set_xlabel("N", fontsize=FONT_LABELS)
     ax.set_ylabel(r"$\langle J \rangle$", fontsize=FONT_LABELS)
     ax.tick_params(labelsize=FONT_TICKS)
+    apply_scientific_y(ax, fontsize=FONT_TICKS)
     fig.tight_layout()
 
     image_dir.mkdir(parents=True, exist_ok=True)

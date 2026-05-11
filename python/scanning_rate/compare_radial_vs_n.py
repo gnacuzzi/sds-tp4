@@ -1,12 +1,16 @@
 import argparse
 import csv
 from pathlib import Path
+import sys
 
 import matplotlib
 import numpy as np
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from python.plot_format import apply_scientific_y
 
 
 TP3_CSV = Path("output/radial_vs_N_tp3.csv")
@@ -164,6 +168,7 @@ def main():
     ax_rho.tick_params(axis="y", labelcolor="tab:blue", labelsize=FONT_TICKS)
     ax_v.tick_params(axis="y", labelcolor="tab:orange", labelsize=FONT_TICKS)
     ax_j.tick_params(axis="y", labelcolor="tab:green", labelsize=FONT_TICKS)
+    apply_scientific_y(ax_rho, ax_v, ax_j, fontsize=FONT_TICKS)
 
     legend_handles = [handle.lines[0] for handle in handles]
     legend_labels = [handle.get_label() for handle in handles]
