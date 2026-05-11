@@ -7,7 +7,7 @@ BIN_PATH="$ROOT_DIR/bin/scanning_rate"
 OUTPUT_PATH="$ROOT_DIR/output/performance.csv"
 
 TF="${TF:-500}"
-DT="${DT:-0.001}"
+DT="${DT:-0.0005}"
 DT2="${DT2:-2.0}"
 K="${K:-1000}"
 RUNS="${RUNS:-10}"
