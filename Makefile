@@ -1,5 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -Werror -pedantic -std=c11 -O2
+DEPFLAGS = -MMD -MP
 LDFLAGS = -lm
 
 SRC_DIR = src
@@ -24,6 +25,7 @@ SCAN_SRC = \
 
 OSC_OBJ = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(OSC_SRC))
 SCAN_OBJ = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SCAN_SRC))
+DEPS = $(OSC_OBJ:.o=.d) $(SCAN_OBJ:.o=.d)
 
 all: $(OSC_TARGET) $(SCAN_TARGET)
 
@@ -38,7 +40,7 @@ $(SCAN_TARGET): $(SCAN_OBJ)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 run-oscillator: $(OSC_TARGET)
 	./$(OSC_TARGET) euler $(OUT_DIR)/oscillator_euler.csv
@@ -59,3 +61,5 @@ fclean: clean
 re: clean all
 
 .PHONY: all run-oscillator run-scanning-rate benchmark-scanning-rate clean fclean re
+
+-include $(DEPS)
