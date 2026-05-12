@@ -89,8 +89,8 @@ plt.errorbar(
 plt.xlim(min(all_ns) * 0.9, max(all_ns) * 1.05)
 plt.xticks(fontsize=14)
 plt.yticks(fontsize=14)
-plt.xlabel("Number of particles (N)", fontsize=16)
-plt.ylabel("Execution time (s)", fontsize=16)
+plt.xlabel("Número de partículas (N)", fontsize=16)
+plt.ylabel("Tiempo de ejecución (s)", fontsize=16)
 plt.legend(fontsize=13)
 plt.tight_layout()
 
