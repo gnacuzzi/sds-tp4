@@ -390,14 +390,14 @@ def plot_all_n_profiles(results, metric, ylabel, output_file, s_min=DEFAULT_PLOT
     plt.close(fig)
 
 
-def plot_all_n(results, s_min=DEFAULT_PLOT_S_MIN, s_max=DEFAULT_PLOT_S_MAX):
-    Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+def plot_all_n(results, s_min=DEFAULT_PLOT_S_MIN, s_max=DEFAULT_PLOT_S_MAX, image_dir=OUTPUT_DIR, output_prefix=""):
+    Path(image_dir).mkdir(parents=True, exist_ok=True)
 
     plot_all_n_profiles(
         results,
         "rho",
         r"$\langle \rho_f^{\mathrm{in}}\rangle(S)$",
-        f"{OUTPUT_DIR}/radial_rho_all_N.png",
+        f"{image_dir}/{output_prefix}radial_rho_all_N.png",
         s_min=s_min,
         s_max=s_max,
     )
@@ -405,7 +405,7 @@ def plot_all_n(results, s_min=DEFAULT_PLOT_S_MIN, s_max=DEFAULT_PLOT_S_MAX):
         results,
         "velocity",
         r"$\left|\langle v_f^{\mathrm{in}}\rangle(S)\right|$",
-        f"{OUTPUT_DIR}/radial_velocity_all_N.png",
+        f"{image_dir}/{output_prefix}radial_velocity_all_N.png",
         s_min=s_min,
         s_max=s_max,
     )
@@ -413,7 +413,7 @@ def plot_all_n(results, s_min=DEFAULT_PLOT_S_MIN, s_max=DEFAULT_PLOT_S_MAX):
         results,
         "jin",
         r"$J_{\mathrm{in}}(S)$",
-        f"{OUTPUT_DIR}/radial_Jin_all_N.png",
+        f"{image_dir}/{output_prefix}radial_Jin_all_N.png",
         s_min=s_min,
         s_max=s_max,
     )
@@ -425,6 +425,8 @@ def parse_args():
     parser.add_argument("--all", action="store_true", help="Process all available N values.")
     parser.add_argument("--ns", type=int, nargs="+", default=None, help="Specific N values to process.")
     parser.add_argument("--run-ids", type=int, nargs="+", default=None, help="Only process these run ids.")
+    parser.add_argument("--image-dir", default=OUTPUT_DIR, help="Directory where plots are written.")
+    parser.add_argument("--output-prefix", default="", help="Prefix added to generated plot filenames.")
     parser.add_argument(
         "--profiles-csv",
         default=str(DEFAULT_PROFILE_CSV),
@@ -462,7 +464,13 @@ def main():
         if not results:
             raise SystemExit("No valid radial data found.")
 
-        plot_all_n(results, s_min=args.plot_s_min, s_max=args.plot_s_max)
+        plot_all_n(
+            results,
+            s_min=args.plot_s_min,
+            s_max=args.plot_s_max,
+            image_dir=args.image_dir,
+            output_prefix=args.output_prefix,
+        )
 
 
 if __name__ == "__main__":
