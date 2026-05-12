@@ -31,10 +31,14 @@ typedef struct {
     double tf;
     double dt;
     double dt2;
+    double energy_dt2;
     double k;
     unsigned int seed;
     int run_id;
     bool write_output;
+    bool write_dynamic;
+    bool write_cfc;
+    bool write_energy;
 } scan_config_t;
 
 typedef struct {

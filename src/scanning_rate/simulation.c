@@ -180,6 +180,7 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
     size_t cfc = 0;
     const size_t total_steps = (size_t) llround(config->tf / config->dt);
     size_t sample_every = (size_t) llround(config->dt2 / config->dt);
+    size_t energy_sample_every = (size_t) llround(config->energy_dt2 / config->dt);
     double pair_potential = 0.0;
     double wall_potential = 0.0;
     double obstacle_potential = 0.0;
@@ -188,6 +189,9 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
 
     if (sample_every == 0) {
         sample_every = 1;
+    }
+    if (energy_sample_every == 0) {
+        energy_sample_every = 1;
     }
 
     particles = calloc(config->count, sizeof(*particles));
@@ -230,13 +234,21 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
         observables.potential_obstacle = obstacle_potential;
 
         if (config->write_output) {
-            if (!write_cfc_line(output, &observables) || !write_energy_line(output, &observables)) {
+            if (config->write_cfc && !write_cfc_line(output, &observables)) {
                 cell_index_free(&cell_index);
                 free(particles);
                 return false;
             }
 
-            if (step % sample_every == 0) {
+            if (config->write_energy && (step % energy_sample_every == 0 || step == total_steps)) {
+                if (!write_energy_line(output, &observables)) {
+                    cell_index_free(&cell_index);
+                    free(particles);
+                    return false;
+                }
+            }
+
+            if (config->write_dynamic && step % sample_every == 0) {
                 if (!write_dynamic_snapshot(output, particles, config->count, &observables)) {
                     cell_index_free(&cell_index);
                     free(particles);
@@ -307,9 +319,11 @@ void print_scan_usage(FILE *stream, const char *program_name) {
     fprintf(
         stream,
         "Usage:\n"
-        "  %s [N] [run_id] [tf] [dt] [dt2] [seed] [k] [write_output]\n"
+        "  %s [N] [run_id] [tf] [dt] [dt2] [seed] [k] [write_output] [energy_dt2] [write_dynamic] [write_cfc] [write_energy]\n"
         "\n"
         "write_output defaults to 1. Use 0 for benchmark runs without file I/O.\n"
+        "energy_dt2 defaults to dt, preserving full-resolution energy output.\n"
+        "write_dynamic, write_cfc and write_energy default to 1.\n"
         "Outputs are written to output/<N>_dynamic<run_id>.txt,\n"
         "output/<N>_cfc<run_id>.txt and output/<N>_energy<run_id>.txt\n",
         program_name

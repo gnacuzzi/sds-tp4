@@ -15,6 +15,10 @@ RUN_ID_OFFSET="${RUN_ID_OFFSET:-7000}"
 OUTPUT_DIR="${OUTPUT_DIR:-$ROOT_DIR/output/dt_observable_N${N}}"
 DTS="${DTS:-0.005 0.002 0.001 0.0005}"
 SEED_BASE="${SEED_BASE:-12345}"
+ENERGY_DT2="${ENERGY_DT2:-$DT2}"
+WRITE_DYNAMIC="${WRITE_DYNAMIC:-0}"
+WRITE_CFC="${WRITE_CFC:-0}"
+WRITE_ENERGY="${WRITE_ENERGY:-1}"
 
 dt_label() {
   echo "$1" | sed 's/\./p/g'
@@ -59,7 +63,8 @@ fi
 mkdir -p "$OUTPUT_DIR"
 
 echo "Running dt observable validation"
-echo "N=${N}, realizations=${REALIZATIONS}, tf=${TF}, k=${K}, dt2=${DT2}, jobs=${JOBS}, seed_base=${SEED_BASE}"
+echo "N=${N}, realizations=${REALIZATIONS}, tf=${TF}, k=${K}, dt2=${DT2}, energy_dt2=${ENERGY_DT2}, jobs=${JOBS}, seed_base=${SEED_BASE}"
+echo "write_dynamic=${WRITE_DYNAMIC}, write_cfc=${WRITE_CFC}, write_energy=${WRITE_ENERGY}"
 echo "DTS=${DTS}"
 echo "OUTPUT_DIR=${OUTPUT_DIR}"
 
@@ -73,7 +78,7 @@ for dt in $DTS; do
 
     echo "  -> launching dt=${dt} realization=${realization} internal_run_id=${internal_run_id} seed=${seed}"
     (
-      "$BIN_PATH" "$N" "$internal_run_id" "$TF" "$dt" "$DT2" "$seed" "$K" 1 \
+      "$BIN_PATH" "$N" "$internal_run_id" "$TF" "$dt" "$DT2" "$seed" "$K" 1 "$ENERGY_DT2" "$WRITE_DYNAMIC" "$WRITE_CFC" "$WRITE_ENERGY" \
         > "$OUTPUT_DIR/${N}_dt${label}_run${realization}.log" 2>&1
 
       move_output "dynamic" "$internal_run_id" "$dt" "$realization"

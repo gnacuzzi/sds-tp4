@@ -13,6 +13,7 @@ AUTO_DT2="${AUTO_DT2:-1}"
 JOBS="${JOBS:-2}"
 OUTPUT_DIR="${OUTPUT_DIR:-$ROOT_DIR/output}"
 SEED_BASE="${SEED_BASE:-12345}"
+ENERGY_DT2="${ENERGY_DT2:-$DT}"
 
 move_output() {
   local n="$1"
@@ -87,6 +88,7 @@ fi
 
 echo "Running ${REALIZATIONS} realizations for N = 100, 200, ..., 1000"
 echo "Parameters: tf=${TF}, dt=${DT}, k=${K}, jobs=${JOBS}, seed_base=${SEED_BASE}"
+echo "Output sampling: dynamic_dt2=${DT2:-auto}, cfc_every_dt, energy_dt2=${ENERGY_DT2}"
 echo "Output directory: ${OUTPUT_DIR}"
 if [[ "$AUTO_DT2" == "1" ]]; then
   echo "dt2 mode: automatic by N"
@@ -105,7 +107,7 @@ for N in "${N_VALUES[@]}"; do
     seed=$((SEED_BASE + N * 1000 + run_id))
     echo "  -> launching N=${N} run_id=${run_id} seed=${seed}"
     (
-      "$BIN_PATH" "$N" "$run_id" "$TF" "$DT" "$DT2_VALUE" "$seed" "$K"
+      "$BIN_PATH" "$N" "$run_id" "$TF" "$DT" "$DT2_VALUE" "$seed" "$K" 1 "$ENERGY_DT2"
       move_output "$N" "$run_id" "dynamic"
       move_output "$N" "$run_id" "cfc"
       move_output "$N" "$run_id" "energy"

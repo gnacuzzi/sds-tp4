@@ -64,10 +64,14 @@ int main(int argc, char **argv) {
         .tf = SCAN_DEFAULT_TF,
         .dt = SCAN_DEFAULT_DT,
         .dt2 = SCAN_DEFAULT_DT2,
+        .energy_dt2 = SCAN_DEFAULT_DT,
         .k = SCAN_DEFAULT_K,
         .seed = SCAN_DEFAULT_SEED,
         .run_id = 0,
-        .write_output = true
+        .write_output = true,
+        .write_dynamic = true,
+        .write_cfc = true,
+        .write_energy = true
     };
     scan_output_t output;
     scan_summary_t summary;
@@ -111,9 +115,50 @@ int main(int argc, char **argv) {
 
         config.write_output = write_output_flag != 0;
     }
+    if (argc >= 10 && !parse_double_arg(argv[9], &config.energy_dt2)) {
+        fprintf(stderr, "Invalid energy_dt2: %s\n", argv[9]);
+        return EXIT_FAILURE;
+    }
+    if (argc >= 11) {
+        int write_dynamic_flag;
 
-    if (config.count == 0 || config.tf <= 0.0 || config.dt <= 0.0 || config.dt2 <= 0.0 || config.k <= 0.0) {
-        fprintf(stderr, "N, tf, dt, dt2 and k must be positive.\n");
+        if (!parse_int_arg(argv[10], &write_dynamic_flag)) {
+            fprintf(stderr, "Invalid write_dynamic flag: %s\n", argv[10]);
+            return EXIT_FAILURE;
+        }
+
+        config.write_dynamic = write_dynamic_flag != 0;
+    }
+    if (argc >= 12) {
+        int write_cfc_flag;
+
+        if (!parse_int_arg(argv[11], &write_cfc_flag)) {
+            fprintf(stderr, "Invalid write_cfc flag: %s\n", argv[11]);
+            return EXIT_FAILURE;
+        }
+
+        config.write_cfc = write_cfc_flag != 0;
+    }
+    if (argc >= 13) {
+        int write_energy_flag;
+
+        if (!parse_int_arg(argv[12], &write_energy_flag)) {
+            fprintf(stderr, "Invalid write_energy flag: %s\n", argv[12]);
+            return EXIT_FAILURE;
+        }
+
+        config.write_energy = write_energy_flag != 0;
+    }
+
+    if (
+        config.count == 0 ||
+        config.tf <= 0.0 ||
+        config.dt <= 0.0 ||
+        config.dt2 <= 0.0 ||
+        config.energy_dt2 <= 0.0 ||
+        config.k <= 0.0
+    ) {
+        fprintf(stderr, "N, tf, dt, dt2, energy_dt2 and k must be positive.\n");
         return EXIT_FAILURE;
     }
 
@@ -146,15 +191,19 @@ int main(int argc, char **argv) {
     }
 
     printf(
-        "scanning_rate completed: N=%zu run_id=%d tf=%.6f dt=%.6f dt2=%.6f seed=%u k=%.6f write_output=%d\n",
+        "scanning_rate completed: N=%zu run_id=%d tf=%.6f dt=%.6f dt2=%.6f energy_dt2=%.6f seed=%u k=%.6f write_output=%d write_dynamic=%d write_cfc=%d write_energy=%d\n",
         config.count,
         config.run_id,
         config.tf,
         config.dt,
         config.dt2,
+        config.energy_dt2,
         config.seed,
         config.k,
-        (int) config.write_output
+        (int) config.write_output,
+        (int) config.write_dynamic,
+        (int) config.write_cfc,
+        (int) config.write_energy
     );
     printf("simulation_time=%.9f\n", summary.elapsed_seconds);
     printf("steps=%zu\n", summary.steps);
