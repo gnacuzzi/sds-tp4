@@ -1,31 +1,3 @@
-"""
-k_sweep_J.py — TP4 item 2.4
-
-Reads pre-existing simulation outputs across (k, N, realization) and produces:
-  Plot A: energy total vs time, one panel per k, at a representative N.
-          Validates that the chosen dt keeps energy bounded at each k.
-  Plot B: <F_u>(N) curves, one per k. Colormap+colorbar by log10(k).
-
-Also writes a summary CSV with all (k, N, realization, mean_fu, std_fu, n_samples)
-rows so plot_k_summary.py can produce Plot D without re-reading every file.
-
-File-naming convention (flat, all in output/):
-
-    output/{N}_events{id}.txt
-    output/{N}_energy{id}.txt
-    output/{N}_dynamic{id}.txt
-
-where  id = 10**k_exp + run   for k_exp != 3
-       id = run               for k_exp == 3  (legacy: k=10^3 was the first sweep)
-
-So for N=100, run=0:
-    k=10^1 -> id=10    -> 100_events10.txt
-    k=10^2 -> id=100   -> 100_events100.txt
-    k=10^3 -> id=0     -> 100_events0.txt
-    k=10^4 -> id=10000 -> 100_events10000.txt
-    k=10^5 -> id=100000-> 100_events100000.txt
-"""
-
 import argparse
 import csv
 import os
@@ -96,15 +68,6 @@ def k_to_label(k_exp: int) -> str:
 # ── File-path builders ────────────────────────────────────────────────────────
 
 def file_id(k_exp: int, run: int) -> int:
-    """Encodes (k_exp, run) into the integer used in filenames.
-
-    Legacy convention: k=10^3 was the first sweep and uses bare run indices 0..9.
-    Other k_exp values prefix the run with 10**k_exp to avoid collisions.
-
-    WARNING: collisions are possible if N_RUNS grows large (e.g. k_exp=1
-    with run=90 collides with k_exp=2, run=0 → both produce id=100). With
-    N_RUNS=10 this scheme is safe.
-    """
     if k_exp == 3:
         return run
     return (10 ** k_exp) + run

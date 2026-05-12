@@ -1,39 +1,3 @@
-"""
-k_sweep_radial.py — TP4 item 2.4 (radial branch)
-
-For each (k, N, realization), parses the dynamic file frame-by-frame, selects
-fresh inbound particles (state==0 and x·v < 0), bins them by radial distance S
-from the center, and computes per-shell <rho_f^in>(S) and <v_f^in>(S). Then
-averages those over time and realizations to produce J_in(S), aggregates over
-the obstacle-near shell window S in [S_NEAR_MIN, S_NEAR_MAX], and finally plots:
-
-  Plot C: <J_in|_{S~2}>(N) curves, one per k. Colormap+colorbar by log10(k).
-
-Writes a summary CSV (k, k_exp, N, run, J_in_near, rho_near, v_near) so
-plot_k_summary.py can produce Plot D.
-
-Expected dynamic file format (frame-based, no header):
-
-    <N>                                             ← line 1: particle count
-    t  <time>  <num_collisions>  <unknown_float>    ← line 2: time stamp
-    <id>  <x>  <y>  <vx>  <vy>  <state>             ← N rows
-    ...
-    <N>                                              ← next frame
-    t  <time>  ...
-    ...
-
-State convention: 0 = fresh, 1 = used. Adjust `FRESH_STATE` if reversed.
-
-File-naming convention (flat, all in output/):
-
-    output/{N}_dynamic{id}.txt
-    output/{N}_events{id}.txt
-    output/{N}_energy{id}.txt
-
-where  id = 10**k_exp + run   for k_exp != 3
-       id = run               for k_exp == 3  (legacy)
-"""
-
 import argparse
 import csv
 import os
@@ -108,15 +72,6 @@ def k_value(k_exp: int) -> float:
 
 
 def file_id(k_exp: int, run: int) -> int:
-    """Encodes (k_exp, run) into the integer used in filenames.
-
-    Legacy convention: k=10^3 was the first sweep and uses bare run indices 0..9.
-    Other k_exp values prefix the run with 10**k_exp to avoid collisions.
-
-    WARNING: collisions are possible if N_RUNS grows large (e.g. k_exp=1
-    with run=90 collides with k_exp=2, run=0 → both produce id=100). With
-    N_RUNS=10 this scheme is safe.
-    """
     if k_exp == 3:
         return run
     return (10 ** k_exp) + run
