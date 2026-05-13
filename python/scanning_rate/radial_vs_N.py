@@ -23,11 +23,13 @@ TICK_FONT_SIZE = 15
 DEFAULT_VS_N_CSV = Path("output/radial_vs_N_tp4.csv")
 
 
-def discover_ns():
-    if DEFAULT_VS_N_CSV.is_file():
+def discover_ns_from_csv(csv_path):
+    csv_path = Path(csv_path)
+
+    if csv_path.is_file():
         ns = set()
 
-        with DEFAULT_VS_N_CSV.open(newline="") as handle:
+        with csv_path.open(newline="") as handle:
             reader = csv.DictReader(handle)
             for row in reader:
                 ns.add(int(row["N"]))
@@ -35,6 +37,10 @@ def discover_ns():
         if ns:
             return sorted(ns)
 
+    return []
+
+
+def discover_ns():
     ns = set()
 
     for path in glob.glob("output/*_dynamic*.txt"):
@@ -63,6 +69,8 @@ def parse_args():
         default=str(DEFAULT_VS_N_CSV),
         help="Use this radial-vs-N CSV if it exists.",
     )
+    parser.add_argument("--image-dir", default=OUTPUT_DIR, help="Directory where plots are written.")
+    parser.add_argument("--output-prefix", default="", help="Prefix added to generated plot filenames.")
 
     return parser.parse_args()
 
@@ -148,7 +156,7 @@ def collect_layer_averages(n, s_min, s_max, run_ids=None):
 
 
 def setup_axis(ax, ylabel):
-    ax.set_xlabel("Number of particles (N)", fontsize=14)
+    ax.set_xlabel("Número de partículas (N)", fontsize=14)
     ax.set_ylabel(ylabel, fontsize=14)
     ax.tick_params(labelsize=TICK_FONT_SIZE)
 
@@ -171,25 +179,25 @@ def save_single_vs_n(ns, values, errors, filename, ylabel, color):
     plt.close(fig)
 
 
-def save_multiscale_vs_n(ns, rho_vals, rho_errs, v_vals, v_errs, j_vals, j_errs, s_min, s_max):
-    fig, ax_rho = plt.subplots(figsize=(9, 5))
+def save_multiscale_vs_n(ns, rho_vals, rho_errs, v_vals, v_errs, j_vals, j_errs, s_min, s_max, image_dir, output_prefix):
+    fig, ax_rho = plt.subplots(figsize=(10.5, 5.8))
 
     ax_v = ax_rho.twinx()
     ax_j = ax_rho.twinx()
-    ax_j.spines["right"].set_position(("axes", 1.14))
+    ax_j.spines["right"].set_position(("axes", 1.22))
 
-    rho_label = rf"$\langle \rho_f^{{\mathrm{{in}}}}\rangle$ for S $\in [{s_min:.1f}, {s_max:.1f}]$ m"
-    v_label = rf"$|\langle v_f^{{\mathrm{{in}}}}\rangle|$ for S $\in [{s_min:.1f}, {s_max:.1f}]$ m"
-    j_label = rf"$J_{{\mathrm{{in}}}}$ for S $\in [{s_min:.1f}, {s_max:.1f}]$ m"
+    rho_label = rf"$\langle \rho_f^{{\mathrm{{in}}}}\rangle$, S $\in [{s_min:.1f}, {s_max:.1f}]$ m"
+    v_label = rf"$|\langle v_f^{{\mathrm{{in}}}}\rangle|$, S $\in [{s_min:.1f}, {s_max:.1f}]$ m"
+    j_label = rf"$J_{{\mathrm{{in}}}}$, S $\in [{s_min:.1f}, {s_max:.1f}]$ m"
 
     rho_plot = ax_rho.errorbar(ns, rho_vals, yerr=rho_errs, marker="o", capsize=5, color="tab:blue")
     v_plot = ax_v.errorbar(ns, v_vals, yerr=v_errs, marker="o", capsize=5, color="tab:orange")
     j_plot = ax_j.errorbar(ns, j_vals, yerr=j_errs, marker="o", capsize=5, color="tab:green")
 
-    ax_rho.set_xlabel("Number of particles (N)", fontsize=14)
-    ax_rho.set_ylabel(r"$\langle \rho_f^{\mathrm{in}}\rangle$", color="tab:blue", fontsize=14)
-    ax_v.set_ylabel(r"$|\langle v_f^{\mathrm{in}}\rangle|$", color="tab:orange", fontsize=14)
-    ax_j.set_ylabel(r"$J_{\mathrm{in}}$", color="tab:green", fontsize=14)
+    ax_rho.set_xlabel("Número de partículas (N)", fontsize=14)
+    ax_rho.set_ylabel(r"$\langle \rho_f^{\mathrm{in}}\rangle$", color="tab:blue", fontsize=14, labelpad=8)
+    ax_v.set_ylabel(r"$|\langle v_f^{\mathrm{in}}\rangle|$", color="tab:orange", fontsize=14, labelpad=8)
+    ax_j.set_ylabel(r"$J_{\mathrm{in}}$", color="tab:green", fontsize=14, labelpad=12)
 
     ax_rho.tick_params(axis="y", labelcolor="tab:blue", labelsize=TICK_FONT_SIZE)
     ax_v.tick_params(axis="y", labelcolor="tab:orange", labelsize=TICK_FONT_SIZE)
@@ -204,8 +212,9 @@ def save_multiscale_vs_n(ns, rho_vals, rho_errs, v_vals, v_errs, j_vals, j_errs,
         loc="upper left",
     )
 
-    fig.tight_layout()
-    fig.savefig(f"{OUTPUT_DIR}/radial_vs_N_multiscale.png", dpi=300, bbox_inches="tight")
+    fig.subplots_adjust(right=0.78)
+    Path(image_dir).mkdir(parents=True, exist_ok=True)
+    fig.savefig(f"{image_dir}/{output_prefix}radial_vs_N_multiscale.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -215,8 +224,11 @@ def main():
     if args.s_max <= args.s_min:
         raise SystemExit("--s-max must be greater than --s-min")
 
-    Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-    ns_to_process = args.ns if args.ns is not None else discover_ns()
+    Path(args.image_dir).mkdir(parents=True, exist_ok=True)
+    csv_path = Path(args.vs_n_csv)
+    ns_to_process = args.ns if args.ns is not None else discover_ns_from_csv(csv_path)
+    if not ns_to_process:
+        ns_to_process = discover_ns()
 
     ns = []
     rho_vals = []
@@ -231,6 +243,9 @@ def main():
         values = read_layer_average_from_csv(n, args.vs_n_csv)
         if values is not None:
             print(f"Usando promedio radial desde {args.vs_n_csv} para N={n}")
+        elif csv_path.is_file() and args.ns is None:
+            print(f"N={n} no esta en {args.vs_n_csv}, skipping")
+            continue
         else:
             values = collect_layer_averages(n, args.s_min, args.s_max, run_ids=args.run_ids)
 
@@ -252,7 +267,7 @@ def main():
         ns,
         rho_vals,
         rho_errs,
-        f"{OUTPUT_DIR}/radial_vs_N_rho.png",
+        f"{args.image_dir}/{args.output_prefix}radial_vs_N_rho.png",
         r"$\langle \rho_f^{\mathrm{in}}\rangle$",
         "tab:blue",
     )
@@ -260,7 +275,7 @@ def main():
         ns,
         v_vals,
         v_errs,
-        f"{OUTPUT_DIR}/radial_vs_N_velocity.png",
+        f"{args.image_dir}/{args.output_prefix}radial_vs_N_velocity.png",
         r"$|\langle v_f^{\mathrm{in}}\rangle|$",
         "tab:orange",
     )
@@ -268,7 +283,7 @@ def main():
         ns,
         j_vals,
         j_errs,
-        f"{OUTPUT_DIR}/radial_vs_N_Jin.png",
+        f"{args.image_dir}/{args.output_prefix}radial_vs_N_Jin.png",
         r"$J_{\mathrm{in}}$",
         "tab:green",
     )
@@ -282,6 +297,8 @@ def main():
         j_errs,
         args.s_min,
         args.s_max,
+        args.image_dir,
+        args.output_prefix,
     )
 
     print(f"Processed N values: {ns}")

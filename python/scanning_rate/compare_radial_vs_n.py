@@ -15,9 +15,9 @@ from python.plot_format import apply_scientific_y
 
 TP3_CSV = Path("output/radial_vs_N_tp3.csv")
 TP4_CSV = Path("output/radial_vs_N_tp4.csv")
-OUTPUT_PATH = Path("images/radial_vs_N_tp3_tp4_multiscale.png")
+OUTPUT_PATH = Path("images/radial_vs_N/radial_vs_N_tp3_tp4_multiscale.png")
 
-FONT_LABELS = 15
+FONT_LABELS = 16
 FONT_TICKS = 13
 FONT_LEGEND = 10
 DPI = 300
@@ -80,10 +80,10 @@ def main():
     tp3_rows = read_rows(args.tp3_csv)
     tp4_rows = read_rows(args.tp4_csv)
 
-    fig, ax_rho = plt.subplots(figsize=(10, 5.5))
+    fig, ax_rho = plt.subplots(figsize=(11.5, 6.0))
     ax_v = ax_rho.twinx()
     ax_j = ax_rho.twinx()
-    ax_j.spines["right"].set_position(("axes", 1.16))
+    ax_j.spines["right"].set_position(("axes", 1.25))
 
     handles = []
     handles.append(
@@ -159,10 +159,10 @@ def main():
         )
     )
 
-    ax_rho.set_xlabel("N", fontsize=FONT_LABELS)
-    ax_rho.set_ylabel(r"$\langle \rho_f^{\mathrm{in}}\rangle$", color="tab:blue", fontsize=FONT_LABELS)
-    ax_v.set_ylabel(r"$|\langle v_f^{\mathrm{in}}\rangle|$", color="tab:orange", fontsize=FONT_LABELS)
-    ax_j.set_ylabel(r"$J_{\mathrm{in}}$", color="tab:green", fontsize=FONT_LABELS)
+    ax_rho.set_xlabel("Número de partículas (N)", fontsize=FONT_LABELS)
+    ax_rho.set_ylabel(r"$\langle \rho_f^{\mathrm{in}}\rangle$", color="tab:blue", fontsize=FONT_LABELS, labelpad=8)
+    ax_v.set_ylabel(r"$|\langle v_f^{\mathrm{in}}\rangle|$", color="tab:orange", fontsize=FONT_LABELS, labelpad=8)
+    ax_j.set_ylabel(r"$J_{\mathrm{in}}$", color="tab:green", fontsize=FONT_LABELS, labelpad=14)
 
     ax_rho.tick_params(axis="x", labelsize=FONT_TICKS)
     ax_rho.tick_params(axis="y", labelcolor="tab:blue", labelsize=FONT_TICKS)
@@ -174,9 +174,9 @@ def main():
     legend_labels = [handle.get_label() for handle in handles]
     ax_rho.legend(legend_handles, legend_labels, fontsize=FONT_LEGEND, loc="upper left")
 
-    fig.tight_layout()
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.subplots_adjust(right=0.74)
     fig.savefig(output_path, dpi=DPI, bbox_inches="tight")
     plt.close(fig)
 
