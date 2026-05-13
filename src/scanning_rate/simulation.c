@@ -1,6 +1,7 @@
 #include "simulation.h"
 
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -153,7 +154,15 @@ static double compute_forces(
     return kinetic;
 }
 
-static void update_states(particle_t *particles, size_t count, size_t *cfc) {
+static void update_states(
+    particle_t *particles,
+    size_t count,
+    size_t *cfc,
+    double time,
+    size_t *id_first_used,
+    double *t_used_first,
+    double *t_wall_first
+) {
     size_t i;
 
     for (i = 0; i < count; ++i) {
@@ -165,10 +174,19 @@ static void update_states(particle_t *particles, size_t count, size_t *cfc) {
         if (entered_obstacle_contact && particles[i].state == PARTICLE_FRESH) {
             particles[i].state = PARTICLE_USED;
             (*cfc)++;
+
+            if (*id_first_used == SIZE_MAX) {
+                *id_first_used = particles[i].id;
+                *t_used_first = time;
+            }
         }
 
         if (entered_wall_contact && particles[i].state == PARTICLE_USED) {
             particles[i].state = PARTICLE_FRESH;
+
+            if (particles[i].id == *id_first_used && isnan(*t_wall_first)) {
+                *t_wall_first = time;
+            }
         }
     }
 }
@@ -178,6 +196,9 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
     cell_index_t cell_index;
     size_t step;
     size_t cfc = 0;
+    size_t id_first_used = SIZE_MAX;
+    double t_used_first = NAN;
+    double t_wall_first = NAN;
     const size_t total_steps = (size_t) llround(config->tf / config->dt);
     size_t sample_every = (size_t) llround(config->dt2 / config->dt);
     size_t energy_sample_every = (size_t) llround(config->energy_dt2 / config->dt);
@@ -224,7 +245,15 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
         scan_observables_t observables;
         size_t i;
 
-        update_states(particles, config->count, &cfc);
+        update_states(
+            particles,
+            config->count,
+            &cfc,
+            time,
+            &id_first_used,
+            &t_used_first,
+            &t_wall_first
+        );
 
         observables.time = time;
         observables.cfc = cfc;
@@ -310,6 +339,9 @@ bool run_scan_simulation(const scan_config_t *config, scan_output_t *output, sca
         summary->elapsed_seconds = (double) (end_clock - start_clock) / (double) CLOCKS_PER_SEC;
         summary->steps = total_steps;
         summary->cfc = cfc;
+        summary->id_first_used = id_first_used;
+        summary->t_used_first = t_used_first;
+        summary->t_wall_first = t_wall_first;
     }
 
     return true;

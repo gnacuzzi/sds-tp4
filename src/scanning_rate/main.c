@@ -1,4 +1,6 @@
 #include <errno.h>
+#include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -208,5 +210,23 @@ int main(int argc, char **argv) {
     printf("simulation_time=%.9f\n", summary.elapsed_seconds);
     printf("steps=%zu\n", summary.steps);
     printf("cfc=%zu\n", summary.cfc);
+
+    if (summary.id_first_used == SIZE_MAX) {
+        printf("id_first_used=NA\n");
+        printf("t_used_first=NA\n");
+        printf("t_wall_first=NA\n");
+        printf("dt_used_to_wall=NA\n");
+    } else {
+        printf("id_first_used=%zu\n", summary.id_first_used);
+        printf("t_used_first=%.9f\n", summary.t_used_first);
+        if (isnan(summary.t_wall_first)) {
+            printf("t_wall_first=NA\n");
+            printf("dt_used_to_wall=NA\n");
+        } else {
+            printf("t_wall_first=%.9f\n", summary.t_wall_first);
+            printf("dt_used_to_wall=%.9f\n", summary.t_wall_first - summary.t_used_first);
+        }
+    }
+
     return EXIT_SUCCESS;
 }

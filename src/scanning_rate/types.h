@@ -54,6 +54,9 @@ typedef struct {
     double elapsed_seconds;
     size_t steps;
     size_t cfc;
+    size_t id_first_used;
+    double t_used_first;
+    double t_wall_first;
 } scan_summary_t;
 
 #endif
