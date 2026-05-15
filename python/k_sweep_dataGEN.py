@@ -10,7 +10,7 @@ TF = 500
 DT =0.001
 DT2_VALUE = 0.1
 
-list_of_N = [300, 400, 500, 600, 700, 800, 900, 1000]
+list_of_N = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
 
 prosesses = []
 print(subprocess.run("pwd"))

@@ -74,7 +74,7 @@ def file_id(k_exp: int, run: int) -> int:
 
 
 def events_path(N: int, k_exp: int, run: int) -> Path:
-    return OUTPUT_DIR / f"{N}_events{file_id(k_exp, run)}.txt"
+    return OUTPUT_DIR / f"{N}_cfc{file_id(k_exp, run)}.txt"
 
 
 def energy_path(N: int, k_exp: int, run: int) -> Path:

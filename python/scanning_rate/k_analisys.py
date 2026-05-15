@@ -66,7 +66,7 @@ def data_collection():
                 else:
                     id_num = (10**k_val) + idx
 
-                INPUT_FILE = f"output/{N}_events{id_num}.txt"
+                INPUT_FILE = f"output/{N}_cfc{id_num}.txt"
                 frames = parse_dynamic_file(INPUT_FILE)
                 time_long, cfcval_long = map(list, zip(*frames))
                 # Keep only points where CFC changes
@@ -117,12 +117,12 @@ def data_collection():
 
     fig2, axL = plt.subplots()
     axR = axL.twinx()
-    axL.plot(ks_plot, max_J, "-o", color="navy", label="max⟨J⟩")
-    axR.plot(ks_plot, N_star, "--s", color="crimson", label="N*")
+    axL.plot(ks_plot, max_J, "-o", color="tab:blue", label="max⟨J⟩")
+    axR.plot(ks_plot, N_star, "--s", color="tab:orange", label="N*")
     axL.set_xscale("log")
     axL.set_xlabel("k")
-    axL.set_ylabel("max⟨J⟩",  color="navy")
-    axR.set_ylabel("N*",     color="crimson")
+    axL.set_ylabel("max⟨J⟩",  color="tab:blue")
+    axR.set_ylabel("N*",     color="tab:orange")
     fig2.savefig("images/scalar_vs_k.png", dpi=300)
 
 data_collection()
