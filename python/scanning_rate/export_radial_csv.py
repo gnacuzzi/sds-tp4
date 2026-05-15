@@ -19,6 +19,18 @@ DEFAULT_S_MIN = 1.5
 DEFAULT_S_MAX = 5.0
 
 
+def format_float(value):
+    return f"{float(value):.12e}" if np.isfinite(value) else "nan"
+
+
+def nanmean_or_nan(values):
+    values = np.asarray(values, dtype=float)
+    if not np.any(np.isfinite(values)):
+        return np.nan
+
+    return float(np.nanmean(values))
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Export radial profile averages to CSV.")
     parser.add_argument("--tp3-dir", default="output_tp3", help="Directory with TP3 dynamic files.")
@@ -82,12 +94,15 @@ def summarize_n(directory, n_value, run_ids):
 
     rho_mean = np.mean(rho_runs, axis=0)
     rho_std = np.std(rho_runs, axis=0, ddof=ddof)
-    v_mean = np.mean(v_runs, axis=0)
+    with np.errstate(invalid="ignore"):
+        v_mean = np.nanmean(v_runs, axis=0)
     v_abs_mean = np.abs(v_mean)
-    v_abs_std = np.std(np.abs(v_runs), axis=0, ddof=ddof)
+    with np.errstate(invalid="ignore"):
+        v_abs_std = np.nanstd(np.abs(v_runs), axis=0, ddof=ddof)
     jin_runs = rho_runs * np.abs(v_runs)
     jin_mean = rho_mean * v_abs_mean
-    jin_std = np.std(jin_runs, axis=0, ddof=ddof)
+    with np.errstate(invalid="ignore"):
+        jin_std = np.nanstd(jin_runs, axis=0, ddof=ddof)
 
     return {
         "S": S,
@@ -130,11 +145,11 @@ def write_profiles_csv(dataset, summaries, output_dir):
                     f"{s_value:.12g}",
                     f"{summary['rho_mean'][idx]:.12e}",
                     f"{summary['rho_std'][idx]:.12e}",
-                    f"{summary['v_mean'][idx]:.12e}",
-                    f"{summary['v_abs_mean'][idx]:.12e}",
-                    f"{summary['v_abs_std'][idx]:.12e}",
-                    f"{summary['jin_mean'][idx]:.12e}",
-                    f"{summary['jin_std'][idx]:.12e}",
+                    format_float(summary['v_mean'][idx]),
+                    format_float(summary['v_abs_mean'][idx]),
+                    format_float(summary['v_abs_std'][idx]),
+                    format_float(summary['jin_mean'][idx]),
+                    format_float(summary['jin_std'][idx]),
                     summary["runs"],
                 ])
 
@@ -175,11 +190,11 @@ def write_vs_n_csv(dataset, summaries, output_dir, s_min, s_max):
                 f"{float(np.max(S[mask])):.12g}",
                 f"{float(np.mean(summary['rho_mean'][mask])):.12e}",
                 f"{float(np.mean(summary['rho_std'][mask])):.12e}",
-                f"{float(np.mean(summary['v_mean'][mask])):.12e}",
-                f"{float(abs(np.mean(summary['v_mean'][mask]))):.12e}",
-                f"{float(np.mean(summary['v_abs_std'][mask])):.12e}",
-                f"{float(np.mean(summary['jin_mean'][mask])):.12e}",
-                f"{float(np.mean(summary['jin_std'][mask])):.12e}",
+                format_float(nanmean_or_nan(summary["v_mean"][mask])),
+                format_float(abs(nanmean_or_nan(summary["v_mean"][mask]))),
+                format_float(nanmean_or_nan(summary["v_abs_std"][mask])),
+                format_float(nanmean_or_nan(summary["jin_mean"][mask])),
+                format_float(nanmean_or_nan(summary["jin_std"][mask])),
                 summary["runs"],
             ])
 

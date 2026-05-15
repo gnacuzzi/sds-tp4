@@ -163,7 +163,7 @@ def compute_profiles(snapshots):
     # PROMEDIOS
     # =========================
     rho = np.zeros(num_bins)
-    v = np.zeros(num_bins)
+    v = np.full(num_bins, np.nan)
 
     n_snapshots = len(snapshots)
 
@@ -221,7 +221,8 @@ def process_N(n, run_ids=None, profiles_csv=DEFAULT_PROFILE_CSV):
 
     # promedio entre realizaciones
     rho_mean = np.mean(all_rho, axis=0)
-    v_mean = np.mean(all_v, axis=0)
+    with np.errstate(invalid="ignore"):
+        v_mean = np.nanmean(all_v, axis=0)
     J_mean = rho_mean * np.abs(v_mean)
 
     return S, rho_mean, v_mean, J_mean
