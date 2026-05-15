@@ -117,7 +117,17 @@ def write_combined_csv(data, path: Path):
                 )
 
 
-def plot(data, output_path: Path, title: str):
+def ylabel_for_metric(metric: str):
+    labels = {
+        "max": r"$\langle \max_t |\Delta E / E_0| \rangle$",
+        "mae": r"$\langle |\Delta E / E_0| \rangle$",
+        "mse": r"$\langle (\Delta E / E_0)^2 \rangle$",
+        "slope": r"$\langle |d(\Delta E/E_0)/dt| \rangle$",
+    }
+    return labels.get(metric, metric)
+
+
+def plot(data, output_path: Path, title: str, metric: str):
     fig, ax = plt.subplots(figsize=(9, 6))
     markers = ["o", "s", "^", "D", "v"]
 
@@ -142,7 +152,7 @@ def plot(data, output_path: Path, title: str):
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("dt (s)", fontsize=FONT_LABELS)
-    ax.set_ylabel(r"$\langle \max_t |\Delta E / E_0| \rangle$", fontsize=FONT_LABELS)
+    ax.set_ylabel(ylabel_for_metric(metric), fontsize=FONT_LABELS)
     ax.tick_params(labelsize=FONT_TICKS)
     ax.legend(fontsize=FONT_LEGEND)
     fig.tight_layout()
@@ -180,7 +190,7 @@ def main():
     output_path = Path(args.output)
     combined_csv = Path(args.csv_output)
     write_combined_csv(data, combined_csv)
-    plot(data, output_path, args.title)
+    plot(data, output_path, args.title, args.metric)
 
     print(f"Combined CSV written to {combined_csv}")
     print(f"Saved {output_path}")

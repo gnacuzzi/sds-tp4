@@ -45,14 +45,31 @@ def parse_args():
         default=None,
         help="Solo procesar estos run ids.",
     )
+    parser.add_argument(
+        "--profiles-csv",
+        default=str(DEFAULT_PROFILE_CSV),
+        help="CSV de perfiles radiales a usar si existe.",
+    )
+    parser.add_argument(
+        "--image-dir",
+        default=OUTPUT_DIR,
+        help="Directorio donde se guarda el grafico.",
+    )
+    parser.add_argument(
+        "--output-prefix",
+        default="",
+        help="Prefijo para el nombre del png generado.",
+    )
     return parser.parse_args()
 
 
-def discover_ns():
-    if DEFAULT_PROFILE_CSV.is_file():
+def discover_ns(profiles_csv=DEFAULT_PROFILE_CSV):
+    profiles_csv = Path(profiles_csv)
+
+    if profiles_csv.is_file():
         ns = set()
 
-        with DEFAULT_PROFILE_CSV.open(newline="") as handle:
+        with profiles_csv.open(newline="") as handle:
             reader = csv.DictReader(handle)
             for row in reader:
                 ns.add(int(row["N"]))
@@ -75,8 +92,8 @@ def discover_ns():
     return sorted(ns)
 
 
-def resolve_ns(selected_ns):
-    available_ns = discover_ns()
+def resolve_ns(selected_ns, profiles_csv):
+    available_ns = discover_ns(profiles_csv)
 
     if len(available_ns) == 0:
         return []
@@ -95,9 +112,10 @@ def resolve_ns(selected_ns):
 
 def main():
     args = parse_args()
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    image_dir = Path(args.image_dir)
+    image_dir.mkdir(parents=True, exist_ok=True)
 
-    ns = resolve_ns(args.ns)
+    ns = resolve_ns(args.ns, args.profiles_csv)
     if len(ns) == 0:
         if args.ns is None:
             print("No se encontraron archivos dynamic en output/")
@@ -119,12 +137,12 @@ def main():
 
     for n in ns:
         print(f"Procesando N = {n}")
-        S, _, _, J = process_N(n, run_ids=args.run_ids)
+        S, _, _, J = process_N(n, run_ids=args.run_ids, profiles_csv=args.profiles_csv)
 
         if S is None:
             continue
 
-        mask = (S >= X_MIN) & (S <= X_MAX)
+        mask = (S >= X_MIN) & (S <= X_MAX) & np.isfinite(J)
         if not np.any(mask):
             continue
 
@@ -140,6 +158,12 @@ def main():
     ax.set_xlim(X_MIN, X_MAX)
 
     y_concat = np.concatenate(all_y_in_zoom)
+    y_concat = y_concat[np.isfinite(y_concat)]
+    if len(y_concat) == 0:
+        print("No se encontraron datos finitos de J en el intervalo de zoom pedido")
+        plt.close(fig)
+        return
+
     y_min = np.min(y_concat)
     y_max = np.max(y_concat)
 
@@ -162,7 +186,7 @@ def main():
     cbar.ax.tick_params(labelsize=12)
 
     fig.tight_layout()
-    out_path = f"{OUTPUT_DIR}/radial_Jin_zoom_all_N.png"
+    out_path = image_dir / f"{args.output_prefix}radial_Jin_zoom_all_N.png"
     fig.savefig(out_path, dpi=300)
     plt.close(fig)
 

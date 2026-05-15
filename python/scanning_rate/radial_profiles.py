@@ -327,11 +327,13 @@ def plot_profiles_multiscale(S, rho, v, J, n):
     plt.close(fig)
 
 
-def discover_ns():
-    if DEFAULT_PROFILE_CSV.is_file():
+def discover_ns(profiles_csv=DEFAULT_PROFILE_CSV):
+    profiles_csv = Path(profiles_csv)
+
+    if profiles_csv.is_file():
         ns = set()
 
-        with DEFAULT_PROFILE_CSV.open(newline="") as handle:
+        with profiles_csv.open(newline="") as handle:
             reader = csv.DictReader(handle)
             for row in reader:
                 ns.add(int(row["N"]))
@@ -443,7 +445,7 @@ def main():
     args = parse_args()
 
     if args.all:
-        ns = discover_ns()
+        ns = discover_ns(args.profiles_csv)
     elif args.ns is not None:
         ns = args.ns
     elif args.N is not None:

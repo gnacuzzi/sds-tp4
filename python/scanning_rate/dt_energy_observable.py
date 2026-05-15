@@ -36,12 +36,13 @@ def parse_args():
     parser.add_argument("--n", type=int, default=1000, help="Particle count used in the file names.")
     parser.add_argument(
         "--metric",
-        choices=["mse", "mae", "max"],
+        choices=["mse", "mae", "max", "slope"],
         default="mse",
         help=(
             "Observable: mse = mean(relative energy error^2), "
             "mae = mean(abs(relative energy error)), "
-            "max = max(abs(relative energy error))."
+            "max = max(abs(relative energy error)), "
+            "slope = abs(linear slope of relative energy error vs time)."
         ),
     )
     parser.add_argument(
@@ -53,6 +54,7 @@ def parse_args():
     parser.add_argument("--t-max", type=float, default=None, help="Maximum time included in the observable.")
     parser.add_argument("--dts", type=float, nargs="+", default=None, help="Only include these dt values.")
     parser.add_argument("--exclude-dts", type=float, nargs="+", default=None, help="Exclude these dt values.")
+    parser.add_argument("--no-title", action="store_true", help="Do not show the N title above the plot.")
 
     return parser.parse_args()
 
@@ -109,13 +111,16 @@ def load_relative_error(path: Path, t_min, t_max):
     return t[mask], rel, e0, energy[-1]
 
 
-def compute_metric(rel, metric):
+def compute_metric(t, rel, metric):
     if metric == "mse":
         return float(np.mean(rel ** 2))
     if metric == "mae":
         return float(np.mean(np.abs(rel)))
     if metric == "max":
         return float(np.max(np.abs(rel)))
+    if metric == "slope":
+        slope, _ = np.polyfit(t, rel, deg=1)
+        return float(abs(slope))
     raise ValueError(f"Unknown metric: {metric}")
 
 
@@ -125,7 +130,7 @@ def compute_rows(files, metric, t_min, t_max):
 
     for dt, run_id, path in files:
         t, rel, e0, e_final = load_relative_error(path, t_min, t_max)
-        observable = compute_metric(rel, metric)
+        observable = compute_metric(t, rel, metric)
         max_abs = float(np.max(np.abs(rel)))
         final_drift = float((e_final - e0) / e0)
 
@@ -192,7 +197,7 @@ def write_summary(path: Path, metric, summary_rows, per_run_rows):
             ])
 
 
-def plot_summary(summary_rows, metric, image_dir: Path, n_value: int):
+def plot_summary(summary_rows, metric, image_dir: Path, n_value: int, show_title: bool):
     dts = np.array([row["dt"] for row in summary_rows], dtype=float)
     means = np.array([row["mean"] for row in summary_rows], dtype=float)
     stds = np.array([row["std"] for row in summary_rows], dtype=float)
@@ -214,10 +219,13 @@ def plot_summary(summary_rows, metric, image_dir: Path, n_value: int):
         ylabel = r"$\langle |\Delta E/E_0| \rangle$"
     else:
         ylabel = r"$\langle \max_t |\Delta E/E_0| \rangle$"
+    if metric == "slope":
+        ylabel = r"$\langle |d(\Delta E/E_0)/dt| \rangle$"
 
     ax.set_ylabel(ylabel, fontsize=FONT_LABELS)
     ax.tick_params(labelsize=FONT_TICKS)
-    ax.set_title(f"N = {n_value}", fontsize=FONT_LABELS)
+    if show_title:
+        ax.set_title(f"N = {n_value}", fontsize=FONT_LABELS)
     apply_scientific_y(ax, fontsize=FONT_TICKS)
     fig.tight_layout()
 
@@ -250,7 +258,7 @@ def main():
             metric_summary_path = summary_path.with_name(f"{summary_path.stem}_{metric}{summary_path.suffix}")
 
         write_summary(metric_summary_path, metric, summary_rows, per_run_rows)
-        plot_path = plot_summary(summary_rows, metric, image_dir, args.n)
+        plot_path = plot_summary(summary_rows, metric, image_dir, args.n, not args.no_title)
 
         print(f"Metric: {metric}")
         print(f"Summary written to {metric_summary_path}")

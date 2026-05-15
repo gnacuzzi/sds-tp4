@@ -71,6 +71,11 @@ def parse_args():
     )
     parser.add_argument("--image-dir", default=OUTPUT_DIR, help="Directory where plots are written.")
     parser.add_argument("--output-prefix", default="", help="Prefix added to generated plot filenames.")
+    parser.add_argument(
+        "--rho-velocity-only",
+        action="store_true",
+        help="In the multiscale plot, include only density and velocity.",
+    )
 
     return parser.parse_args()
 
@@ -218,6 +223,28 @@ def save_multiscale_vs_n(ns, rho_vals, rho_errs, v_vals, v_errs, j_vals, j_errs,
     plt.close(fig)
 
 
+def save_rho_velocity_multiscale_vs_n(ns, rho_vals, rho_errs, v_vals, v_errs, s_min, s_max, image_dir, output_prefix):
+    fig, ax_rho = plt.subplots(figsize=(9, 5.5))
+    ax_v = ax_rho.twinx()
+
+    rho_plot = ax_rho.errorbar(ns, rho_vals, yerr=rho_errs, marker="o", capsize=5, color="tab:blue")
+    v_plot = ax_v.errorbar(ns, v_vals, yerr=v_errs, marker="o", capsize=5, color="tab:orange")
+
+    ax_rho.set_xlabel("Número de partículas (N)", fontsize=14)
+    ax_rho.set_ylabel(r"$\langle \rho_f^{\mathrm{in}}\rangle$", color="tab:blue", fontsize=14, labelpad=8)
+    ax_v.set_ylabel(r"$|\langle v_f^{\mathrm{in}}\rangle|$", color="tab:orange", fontsize=14, labelpad=8)
+
+    ax_rho.tick_params(axis="y", labelcolor="tab:blue", labelsize=TICK_FONT_SIZE)
+    ax_v.tick_params(axis="y", labelcolor="tab:orange", labelsize=TICK_FONT_SIZE)
+    ax_rho.tick_params(axis="x", labelsize=TICK_FONT_SIZE)
+    apply_scientific_y(ax_rho, ax_v, fontsize=TICK_FONT_SIZE)
+
+    fig.tight_layout()
+    Path(image_dir).mkdir(parents=True, exist_ok=True)
+    fig.savefig(f"{image_dir}/{output_prefix}radial_vs_N_rho_velocity_multiscale.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 def main():
     args = parse_args()
 
@@ -287,19 +314,32 @@ def main():
         r"$J_{\mathrm{in}}$",
         "tab:green",
     )
-    save_multiscale_vs_n(
-        ns,
-        rho_vals,
-        rho_errs,
-        v_vals,
-        v_errs,
-        j_vals,
-        j_errs,
-        args.s_min,
-        args.s_max,
-        args.image_dir,
-        args.output_prefix,
-    )
+    if args.rho_velocity_only:
+        save_rho_velocity_multiscale_vs_n(
+            ns,
+            rho_vals,
+            rho_errs,
+            v_vals,
+            v_errs,
+            args.s_min,
+            args.s_max,
+            args.image_dir,
+            args.output_prefix,
+        )
+    else:
+        save_multiscale_vs_n(
+            ns,
+            rho_vals,
+            rho_errs,
+            v_vals,
+            v_errs,
+            j_vals,
+            j_errs,
+            args.s_min,
+            args.s_max,
+            args.image_dir,
+            args.output_prefix,
+        )
 
     print(f"Processed N values: {ns}")
 

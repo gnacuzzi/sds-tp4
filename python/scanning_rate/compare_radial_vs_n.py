@@ -28,6 +28,12 @@ def parse_args():
     parser.add_argument("--tp3-csv", default=str(TP3_CSV), help="TP3 radial_vs_N CSV.")
     parser.add_argument("--tp4-csv", default=str(TP4_CSV), help="TP4 radial_vs_N CSV.")
     parser.add_argument("--output", default=str(OUTPUT_PATH), help="Output image path.")
+    parser.add_argument(
+        "--metric",
+        choices=["all", "rho", "velocity", "jin"],
+        default="all",
+        help="Observable to plot. Default: all.",
+    )
 
     return parser.parse_args()
 
@@ -75,10 +81,55 @@ def plot_metric(ax, rows, mean_key, std_key, label, color, marker, linestyle):
     )
 
 
+def plot_single_metric(tp3_rows, tp4_rows, metric, output_path):
+    metrics = {
+        "rho": (
+            "rho_mean",
+            "rho_std",
+            r"$\langle \rho_f^{\mathrm{in}}\rangle$",
+            "tab:blue",
+        ),
+        "velocity": (
+            "v_abs_mean",
+            "v_abs_std",
+            r"$|\langle v_f^{\mathrm{in}}\rangle|$",
+            "tab:orange",
+        ),
+        "jin": (
+            "jin_mean",
+            "jin_std",
+            r"$J_{\mathrm{in}}$",
+            "tab:green",
+        ),
+    }
+    mean_key, std_key, ylabel, color = metrics[metric]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    plot_metric(ax, tp3_rows, mean_key, std_key, "TP3", "tab:orange", "o", "--")
+    plot_metric(ax, tp4_rows, mean_key, std_key, "TP4", "tab:blue", "s", "-")
+
+    ax.set_xlabel("Número de partículas (N)", fontsize=FONT_LABELS)
+    ax.set_ylabel(ylabel, fontsize=FONT_LABELS)
+    ax.tick_params(labelsize=FONT_TICKS)
+    apply_scientific_y(ax, fontsize=FONT_TICKS)
+    ax.legend(fontsize=FONT_LEGEND, loc="best")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=DPI, bbox_inches="tight")
+    plt.close(fig)
+
+
 def main():
     args = parse_args()
     tp3_rows = read_rows(args.tp3_csv)
     tp4_rows = read_rows(args.tp4_csv)
+    output_path = Path(args.output)
+
+    if args.metric != "all":
+        plot_single_metric(tp3_rows, tp4_rows, args.metric, output_path)
+        print(f"Saved {output_path}")
+        return
 
     fig, ax_rho = plt.subplots(figsize=(11.5, 6.0))
     ax_v = ax_rho.twinx()
@@ -174,7 +225,6 @@ def main():
     legend_labels = [handle.get_label() for handle in handles]
     ax_rho.legend(legend_handles, legend_labels, fontsize=FONT_LEGEND, loc="upper left")
 
-    output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.subplots_adjust(right=0.74)
     fig.savefig(output_path, dpi=DPI, bbox_inches="tight")
