@@ -1,24 +1,19 @@
 """
-plot_k_summary.py — TP4 item 2.4 (Plot D)
+plot_jin_summary_vs_k.py
 
-Reads the summary CSVs written by k_sweep_J.py and k_sweep_radial.py, extracts
-characteristic scalars from each curve, and plots them vs k:
+Reads radial_vs_N_tp4.csv from a list of per-k folders, extracts two scalars
+from each curve, and plots them vs k:
 
-  * From <F_u>(N) per k:           max(<F_u>)(k)  and  N* (= argmax over N)
-  * From <J_in|_{S~2}>(N) per k:   max value     and  N*
+  * max <J_in>(k)  — peak value of the curve
+  * N*(k)          — N at which the peak occurs (argmax)
 
-Two plots, twin y-axes:
-  Plot D-1: from F_u summary       (max <F_u> on left, N* on right)
-  Plot D-2: from radial summary    (max J_in_near on left, N* on right)
+Two scalars share one figure via twin y-axes.
 
-This script is read-only over the summary CSVs; re-running it after tweaking the
-display is fast and doesn't touch any simulation outputs.
+Edit FOLDERS and FILENAME at the top to point at your data.
 """
 
-import argparse
 import csv
 import os
-from collections import defaultdict
 from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
@@ -31,12 +26,21 @@ import numpy as np
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
-DEFAULT_FU_SUMMARY     = Path("output/k_sweep_J_summary.csv")
-DEFAULT_RADIAL_SUMMARY = Path("output/k_sweep_radial_summary.csv")
+# One folder per k value. Same convention as plot_jin_vs_N.py.
+FOLDERS = [
+    ("output/radial_k10",    10),
+    ("output/radial_k100",   100),
+    ("output/radial_k1000",  1000),
+    ("output/radial_k10000", 10000),
+]
 
-DEFAULT_FIG_FU_PATH     = Path("images/scanning_rate/k_sweep_summary_fu.png")
-DEFAULT_FIG_RADIAL_PATH = Path("images/scanning_rate/k_sweep_summary_radial.png")
+# Same filename in every folder.
+FILENAME = "radial_vs_N_tp4.csv"
 
+# Output figure.
+OUTPUT_PATH = Path("images/scanning_rate/jin_summary_vs_k.png")
+
+# Visual style.
 FIGSIZE     = (9, 6)
 DPI         = 300
 LABEL_SIZE  = 16
@@ -44,94 +48,105 @@ TICK_SIZE   = 14
 LEGEND_SIZE = 13
 
 
-# ── Summary loading ───────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-def load_summary(path: Path, value_col: str) -> dict[float, dict[int, list[float]]]:
-    """{k: {N: [per-run values of value_col]}} ignoring NaNs."""
-    out: dict[float, dict[int, list[float]]] = defaultdict(lambda: defaultdict(list))
-    if not path.is_file():
-        raise FileNotFoundError(f"Summary not found: {path}")
-    with path.open(newline="") as handle:
+def load_jin(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Returns (N_array, jin_mean_array), sorted by N."""
+    Ns: list[int] = []
+    means: list[float] = []
+    with path.open() as handle:
         reader = csv.DictReader(handle)
         for row in reader:
             try:
-                k = float(row["k"])
-                N = int(row["N"])
-                v = float(row[value_col])
+                Ns.append(int(row["N"]))
+                means.append(float(row["jin_mean"]))
             except (KeyError, ValueError):
                 continue
-            if np.isnan(v):
-                continue
-            out[k][N].append(v)
-    return out
+    order = np.argsort(Ns)
+    return (
+        np.array(Ns, dtype=int)[order],
+        np.array(means, dtype=float)[order],
+    )
 
 
-def per_kN_means(per_kN: dict[float, dict[int, list[float]]]) -> dict[float, dict[int, float]]:
-    return {
-        k: {N: float(np.mean(values)) for N, values in inner.items() if values}
-        for k, inner in per_kN.items()
-    }
-
-
-# ── Scalar extraction ─────────────────────────────────────────────────────────
-
-def extract_max_and_argmax(curve: dict[int, float]) -> tuple[float, int]:
-    """For one curve y(N), returns (max_y, argmax_N). Skips NaN."""
-    items = [(N, y) for N, y in curve.items() if not np.isnan(y)]
-    if not items:
+def peak_and_argmax(Ns: np.ndarray, means: np.ndarray) -> tuple[float, int]:
+    """Returns (max value, N at argmax). NaN-safe."""
+    if Ns.size == 0:
         return float("nan"), -1
-    items.sort(key=lambda t: t[0])
-    Ns = np.array([t[0] for t in items])
-    ys = np.array([t[1] for t in items])
-    idx = int(np.argmax(ys))
-    return float(ys[idx]), int(Ns[idx])
+    valid = ~np.isnan(means)
+    if not np.any(valid):
+        return float("nan"), -1
+    idx = int(np.argmax(means[valid]))
+    Ns_valid = Ns[valid]
+    means_valid = means[valid]
+    return float(means_valid[idx]), int(Ns_valid[idx])
 
 
-# ── Plotting ──────────────────────────────────────────────────────────────────
+# ── Main ──────────────────────────────────────────────────────────────────────
 
-def plot_scalar_vs_k(
-    means_per_kN: dict[float, dict[int, float]],
-    ylabel_max: str,
-    output_path: Path,
-    title: str,
-) -> None:
-    ks = sorted(means_per_kN.keys())
+def main() -> int:
+    ks: list[int] = []
+    max_jins: list[float] = []
+    N_stars: list[int] = []
+
+    for folder, k in FOLDERS:
+        path = Path(folder) / FILENAME
+        if not path.is_file():
+            print(f"  MISSING: {path}")
+            continue
+
+        Ns, means = load_jin(path)
+        if Ns.size == 0:
+            print(f"  EMPTY: {path}")
+            continue
+
+        max_jin, N_star = peak_and_argmax(Ns, means)
+        if np.isnan(max_jin):
+            print(f"  NO VALID DATA: {path}")
+            continue
+
+        ks.append(k)
+        max_jins.append(max_jin)
+        N_stars.append(N_star)
+        print(f"  k = {k:>6}: max<J_in> = {max_jin:.4e}, N* = {N_star}")
+
     if not ks:
-        print(f"  WARNING: no k values in summary, skipping {output_path}")
-        return
-
-    max_values: list[float] = []
-    argmax_Ns: list[int] = []
-    for k in ks:
-        max_y, N_star = extract_max_and_argmax(means_per_kN[k])
-        max_values.append(max_y)
-        argmax_Ns.append(N_star)
+        print("No data plotted; check folder paths.")
+        return 1
 
     figure, ax_left = plt.subplots(figsize=FIGSIZE)
     ax_right = ax_left.twinx()
 
-    color_left = "#1d3557"
-    color_right = "#e63946"
+    color_left = "#1f77b4"   # blue
+    color_right = "#ff7f0e"  # orange
 
     ax_left.plot(
-        ks, max_values, "-o", color=color_left, linewidth=2.0, markersize=8,
-        label=ylabel_max,
+        ks, max_jins, "-o",
+        color=color_left, linewidth=2.0, markersize=9,
+        label=r"$\max_N \langle J_{in} \rangle$",
     )
     ax_right.plot(
-        ks, argmax_Ns, "--s", color=color_right, linewidth=1.6, markersize=8,
-        label=r"$N^*$ (argmax)",
+        ks, N_stars, "--s",
+        color=color_right, linewidth=1.6, markersize=9,
+        label=r"$N^*$",
     )
 
     ax_left.set_xscale("log")
     ax_left.set_xlabel(r"$k$ [N/m]", fontsize=LABEL_SIZE)
-    ax_left.set_ylabel(ylabel_max, fontsize=LABEL_SIZE, color=color_left)
-    ax_right.set_ylabel(r"$N^*$ (argmax)", fontsize=LABEL_SIZE, color=color_right)
+    ax_left.set_ylabel(
+        r"$\max_N \langle J_{in} \rangle$",
+        fontsize=LABEL_SIZE, color=color_left,
+    )
+    ax_right.set_ylabel(
+        r"$N^*$ (argmax)",
+        fontsize=LABEL_SIZE, color=color_right,
+    )
     ax_left.tick_params(axis="y", labelcolor=color_left, labelsize=TICK_SIZE)
     ax_right.tick_params(axis="y", labelcolor=color_right, labelsize=TICK_SIZE)
     ax_left.tick_params(axis="x", labelsize=TICK_SIZE)
-    ax_left.grid(True, alpha=0.3)
+    ax_left.grid(False)
 
-    # Combined legend
+    # Combined legend across both axes.
     lines_left, labels_left = ax_left.get_legend_handles_labels()
     lines_right, labels_right = ax_right.get_legend_handles_labels()
     ax_left.legend(
@@ -140,65 +155,11 @@ def plot_scalar_vs_k(
         fontsize=LEGEND_SIZE, loc="best",
     )
 
-    ax_left.set_title(title, fontsize=LABEL_SIZE)
-
     figure.tight_layout()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    figure.savefig(output_path, dpi=DPI, bbox_inches="tight")
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(OUTPUT_PATH, dpi=DPI, bbox_inches="tight")
     plt.close(figure)
-    print(f"[Plot D] Saved {output_path}")
-    for k, m, n in zip(ks, max_values, argmax_Ns):
-        print(f"   k={k:.0e}: max={m:.6e}, N*={n}")
-
-
-# ── CLI ───────────────────────────────────────────────────────────────────────
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="TP4 item 2.4: Plot D — scalar-vs-k summary.")
-    parser.add_argument("--fu-summary", default=str(DEFAULT_FU_SUMMARY),
-                        help="CSV from k_sweep_J.py")
-    parser.add_argument("--radial-summary", default=str(DEFAULT_RADIAL_SUMMARY),
-                        help="CSV from k_sweep_radial.py")
-    parser.add_argument("--fig-fu", default=str(DEFAULT_FIG_FU_PATH))
-    parser.add_argument("--fig-radial", default=str(DEFAULT_FIG_RADIAL_PATH))
-    parser.add_argument("--skip-fu", action="store_true")
-    parser.add_argument("--skip-radial", action="store_true")
-    return parser.parse_args()
-
-
-def main() -> int:
-    args = parse_args()
-
-    if not args.skip_fu:
-        try:
-            fu_per_kN = load_summary(Path(args.fu_summary), "mean_fu")
-            fu_means = per_kN_means(fu_per_kN)
-            plot_scalar_vs_k(
-                fu_means,
-                ylabel_max=r"$\max_N \langle F_u \rangle$",
-                output_path=Path(args.fig_fu),
-                title=r"Resumen k-sweep: $\langle F_u \rangle$",
-            )
-        except FileNotFoundError as exc:
-            print(f"  Skipping F_u plot: {exc}")
-    else:
-        print("Skipped F_u summary plot (--skip-fu).")
-
-    if not args.skip_radial:
-        try:
-            radial_per_kN = load_summary(Path(args.radial_summary), "J_in_near")
-            radial_means = per_kN_means(radial_per_kN)
-            plot_scalar_vs_k(
-                radial_means,
-                ylabel_max=r"$\max_N \langle J_{in}|_{S \sim 2} \rangle$",
-                output_path=Path(args.fig_radial),
-                title=r"Resumen k-sweep: $\langle J_{in}|_{S \sim 2} \rangle$",
-            )
-        except FileNotFoundError as exc:
-            print(f"  Skipping radial plot: {exc}")
-    else:
-        print("Skipped radial summary plot (--skip-radial).")
-
+    print(f"\nSaved {OUTPUT_PATH}")
     return 0
 
 

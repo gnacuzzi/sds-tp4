@@ -7,8 +7,15 @@ REPO_ROOT = "./"
 FIXED_ARGS = ""
 ITER = 10
 TF = 500
-DT =0.001
+DT =0.0001
 DT2_VALUE = 0.1
+
+K_CONFIG = {
+    10:    {"DT": 0.01,   "DT2": 1},
+    100:   {"DT": 0.001,  "DT2": 1},
+    1000:  {"DT": 0.0001,  "DT2": 5},
+    10000: {"DT": 0.0001, "DT2": 10},
+}
 
 list_of_N = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
 
@@ -28,8 +35,8 @@ def run_simulation(num_N, k_val):
                 str(num_N),
                 str(run_id),
                 str(TF),
-                str(DT),
-                str(DT2_VALUE),
+                str(K_CONFIG[k_val]["DT"]),
+                str(K_CONFIG[k_val]["DT2"]),
                 "0",
                 str(k_val)
             ],
@@ -43,7 +50,7 @@ def run_simulation(num_N, k_val):
 def start_multiprosess():
     for num_N in list_of_N:
         #To get to 10⁵
-        for k_num in range(1,6):
+        for k_num in range(1,5):
             k_val = 10**k_num
             p = Process(target=run_simulation, args=[num_N, k_val])
             p.start()
