@@ -72,6 +72,7 @@ plt.errorbar(
     linestyle="-",
     capsize=4,
     linewidth=2,
+    color="tab:orange",
     label="TP3"
 )
 
@@ -83,6 +84,7 @@ plt.errorbar(
     linestyle="-",
     capsize=4,
     linewidth=2,
+    color="tab:blue",
     label="TP4"
 )
 

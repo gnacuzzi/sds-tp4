@@ -11,6 +11,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import Rectangle
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 from python.plot_format import apply_scientific_y
@@ -110,6 +112,9 @@ def plot_combined_position(
     output_dir: Path,
     stride: int,
     solid_lines: bool,
+    zoom_inset: bool,
+    zoom_xlim: tuple[float, float],
+    zoom_loc: str,
 ) -> Path:
     figure, axis = plt.subplots(figsize=(11, 6))
     stride = max(stride, 1)
@@ -170,6 +175,71 @@ def plot_combined_position(
     axis.tick_params(axis="both", labelsize=TICK_SIZE)
     apply_scientific_y(axis, fontsize=TICK_SIZE)
     axis.legend(fontsize=LEGEND_SIZE, loc="best", ncols=2)
+
+    if zoom_inset:
+        if zoom_loc == "manual-lower-right":
+            inset = axis.inset_axes([0.56, 0.08, 0.36, 0.34])
+        else:
+            inset = inset_axes(axis, width="32%", height="28%", loc=zoom_loc, borderpad=1.0)
+
+        t_min, t_max = zoom_xlim
+
+        y_values = []
+        mask_ref = (reference["time"] >= t_min) & (reference["time"] <= t_max)
+        y_values.append(reference["x_analytic"][mask_ref])
+
+        for method in METHOD_ORDER:
+            if method not in datasets:
+                continue
+
+            data = datasets[method]
+            mask = (data["time"] >= t_min) & (data["time"] <= t_max)
+            y_values.append(data["x_numeric"][mask])
+            inset.plot(
+                data["time"],
+                data["x_numeric"],
+                linewidth=1.7,
+                color=METHOD_COLORS[method],
+                alpha=0.95,
+                zorder=3,
+            )
+
+        finite_y = np.concatenate([values[np.isfinite(values)] for values in y_values if len(values) > 0])
+        y_lower = None
+        y_upper = None
+        if len(finite_y) > 0:
+            y_min = float(np.min(finite_y))
+            y_max = float(np.max(finite_y))
+            pad = 0.04 * (y_max - y_min) if y_max > y_min else 0.02
+            y_lower = y_min - pad
+            y_upper = y_max + pad
+            inset.set_ylim(y_lower, y_upper)
+
+        inset.plot(
+            reference["time"],
+            reference["x_analytic"],
+            color="black",
+            linewidth=2.0,
+            alpha=1.0,
+            linestyle=(0, (3, 2)),
+            zorder=6,
+        )
+
+        inset.set_xlim(t_min, t_max)
+        inset.tick_params(axis="both", labelsize=10)
+        if y_lower is not None and y_upper is not None:
+            axis.add_patch(
+                Rectangle(
+                    (t_min, y_lower),
+                    t_max - t_min,
+                    y_upper - y_lower,
+                    fill=False,
+                    edgecolor="0.45",
+                    linewidth=1.0,
+                    zorder=5,
+                )
+            )
+
     figure.tight_layout()
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -247,6 +317,24 @@ def build_argument_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Usa curvas solidas en el grafico combinado de posicion.",
     )
+    parser.add_argument(
+        "--zoom-inset",
+        action="store_true",
+        help="Agrega un zoom dentro del grafico combinado de posicion.",
+    )
+    parser.add_argument(
+        "--zoom-xlim",
+        type=float,
+        nargs=2,
+        default=(0.95, 1.15),
+        metavar=("T_MIN", "T_MAX"),
+        help="Intervalo temporal del zoom. Default: 0.95 1.15",
+    )
+    parser.add_argument(
+        "--zoom-loc",
+        default="upper right",
+        help="Ubicacion del inset de zoom. Default: upper right",
+    )
     return parser
 
 
@@ -297,7 +385,15 @@ def main() -> int:
     print(f"Resumen guardado en {summary_path}")
 
     if args.combined_position:
-        combined_path = plot_combined_position(datasets, output_dir, args.stride, args.solid_lines)
+        combined_path = plot_combined_position(
+            datasets,
+            output_dir,
+            args.stride,
+            args.solid_lines,
+            args.zoom_inset,
+            tuple(args.zoom_xlim),
+            args.zoom_loc,
+        )
         print(f"Grafico combinado guardado en {combined_path}")
 
     return 0
